@@ -1,9 +1,11 @@
 mod claude;
 mod db;
 mod git;
+mod remote;
 
 use claude::ClaudeManager;
 use db::{Database, Message, Project, ReferenceDir, Session};
+use remote::{RemoteInfo, RemoteServer};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 
@@ -13,6 +15,7 @@ use tauri::{AppHandle, Manager, State};
 
 struct DbState(Arc<Database>);
 struct ClaudeState(Arc<ClaudeManager>);
+struct RemoteState(Arc<RemoteServer>);
 
 // ---------------------------------------------------------------------------
 // Tauri commands – Projects
@@ -344,6 +347,38 @@ fn git_branch(project_path: String) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – Remote access
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+async fn get_remote_info(remote: State<'_, RemoteState>) -> Result<RemoteInfo, String> {
+    Ok(RemoteInfo {
+        port: remote.0.port(),
+        ips: RemoteServer::get_local_ips(),
+        client_count: remote.0.client_count().await,
+        running: remote.0.is_running().await,
+    })
+}
+
+#[tauri::command]
+async fn start_remote_server(
+    app: AppHandle,
+    db: State<'_, DbState>,
+    claude: State<'_, ClaudeState>,
+    remote: State<'_, RemoteState>,
+) -> Result<(), String> {
+    remote
+        .0
+        .start(db.0.clone(), claude.0.clone(), app)
+        .await
+}
+
+#[tauri::command]
+async fn stop_remote_server(remote: State<'_, RemoteState>) -> Result<(), String> {
+    remote.0.stop().await
+}
+
+// ---------------------------------------------------------------------------
 // App entry point
 // ---------------------------------------------------------------------------
 
@@ -373,8 +408,27 @@ pub fn run() {
             let database =
                 Database::init(&db_path_str).expect("Failed to initialize database");
 
-            app.manage(DbState(Arc::new(database)));
-            app.manage(ClaudeState(Arc::new(ClaudeManager::new())));
+            let db = Arc::new(database);
+            let claude = Arc::new(ClaudeManager::new());
+            let remote = Arc::new(RemoteServer::new(19876));
+
+            app.manage(DbState(db.clone()));
+            app.manage(ClaudeState(claude.clone()));
+            app.manage(RemoteState(remote.clone()));
+
+            // Auto-start the remote server in the background
+            let app_handle = app.handle().clone();
+            let db_for_remote = db.clone();
+            let claude_for_remote = claude.clone();
+            let remote_for_start = remote.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = remote_for_start
+                    .start(db_for_remote, claude_for_remote, app_handle)
+                    .await
+                {
+                    eprintln!("[remote] Failed to auto-start remote server: {}", e);
+                }
+            });
 
             Ok(())
         })
@@ -409,6 +463,10 @@ pub fn run() {
             git_commit,
             git_push,
             git_branch,
+            // Remote access
+            get_remote_info,
+            start_remote_server,
+            stop_remote_server,
         ])
         .on_window_event(|window, event| {
             // Kill all Claude processes when the main window is about to close
