@@ -1,0 +1,18 @@
+{
+  "name": "codebook",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @codebook/desktop tauri dev",
+    "build": "pnpm --filter @codebook/desktop tauri build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.1",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* highlight.js code blocks */
+.hljs { background: #0F0F0F !important; color: #FAFAFA; }
+.hljs-keyword { color: #c084fc; }
+.hljs-string { color: #10B981; }
+.hljs-number { color: #F59E0B; }
+.hljs-comment { color: #4B5563; }
+.hljs-function { color: #06B6D4; }
+.hljs-title { color: #60A5FA; }
+.hljs-params { color: #9CA3AF; }
+.hljs-built_in { color: #F59E0B; }
+.hljs-literal { color: #F59E0B; }
+.hljs-type { color: #06B6D4; }
+.hljs-attr { color: #10B981; }
+.hljs-property { color: #60A5FA; }
+.hljs-meta { color: #6B7280; }
+.hljs-punctuation { color: #6B7280; }
+
+@theme {
+  --color-bg-primary: #0A0A0A;
+  --color-bg-elevated: #0F0F0F;
+  --color-bg-active: #1F1F1F;
+  --color-border: #2a2a2a;
+  --color-text-primary: #FAFAFA;
+  --color-text-secondary: #6B7280;
+  --color-text-dim: #4B5563;
+  --color-accent-green: #10B981;
+  --color-accent-cyan: #06B6D4;
+  --color-accent-purple: #a78bfa;
+  --color-accent-warning: #F59E0B;
+  --color-diff-add: #10B981;
+  --color-diff-del: #EF4444;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: #10B98133;
+  color: #FAFAFA;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+input, textarea {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+}
+
+button {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+select {
+  font-family: var(--font-mono);
+}
+
+/* contentEditable placeholder */
+[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #4B5563;
+  pointer-events: none;
+}
+
+[contenteditable]:focus {
+  outline: none;
+}
+
+/* Hide original line numbers in inline diff mode (first margin column) */
+.inline-diff-wrapper .original-in-foreign { display: none !important; }
+.inline-diff-wrapper .view-overlays .original-in-foreign { display: none !important; }
+.inline-diff-wrapper .margin-view-overlays > div:first-child .line-numbers { visibility: hidden; }
+
+select option,
+select optgroup {
+  background: #0A0A0A;
+  color: #FAFAFA;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+select optgroup {
+  color: #6B7280;
+  font-style: normal;
+}

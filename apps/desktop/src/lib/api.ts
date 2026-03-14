@@ -1,0 +1,76 @@
+import { invoke } from '@tauri-apps/api/core';
+import type { Project, Session, Message, ReferenceDir, FileChange, DiffResult, GitCommitResult, FileEntry, FileContent } from '../types';
+
+// Projects
+export const createProject = (name: string, path: string) =>
+  invoke<Project>('create_project', { name, path });
+
+export const listProjects = () =>
+  invoke<Project[]>('list_projects');
+
+export const deleteProject = (id: string) =>
+  invoke<void>('delete_project', { id });
+
+// Sessions
+export const createSession = (projectId: string, name: string) =>
+  invoke<Session>('create_session', { projectId, name });
+
+export const listSessions = (projectId: string) =>
+  invoke<Session[]>('list_sessions', { projectId });
+
+export const deleteSession = (id: string) =>
+  invoke<void>('delete_session', { id });
+
+// Messages
+export const getMessages = (sessionId: string) =>
+  invoke<Message[]>('get_messages', { sessionId });
+
+export const saveMessage = (sessionId: string, role: string, content: string, model?: string, cost?: number, durationMs?: number) =>
+  invoke<Message>('save_message', { sessionId, role, content, model, cost, durationMs });
+
+// References
+export const addReference = (projectId: string, path: string, label?: string) =>
+  invoke<ReferenceDir>('add_reference', { projectId, path, label });
+
+export const listReferences = (projectId: string) =>
+  invoke<ReferenceDir[]>('list_references', { projectId });
+
+export const removeReference = (id: string) =>
+  invoke<void>('remove_reference', { id });
+
+// Settings
+export const getSetting = (key: string) =>
+  invoke<string | null>('get_setting', { key });
+
+export const setSetting = (key: string, value: string) =>
+  invoke<void>('set_setting', { key, value });
+
+// Chat
+export const sendChatMessage = (sessionId: string, message: string, model?: string) =>
+  invoke<void>('send_chat_message', { sessionId, message, model });
+
+export const stopChat = (sessionId: string) =>
+  invoke<void>('stop_chat', { sessionId });
+
+// File explorer
+export const listDir = (dirPath: string) =>
+  invoke<FileEntry[]>('list_dir', { dirPath });
+
+export const readFileContent = (filePath: string) =>
+  invoke<FileContent>('read_file_content', { filePath });
+
+// Git
+export const gitStatus = (projectPath: string) =>
+  invoke<FileChange[]>('git_status', { projectPath });
+
+export const gitDiffFile = (projectPath: string, filePath: string) =>
+  invoke<DiffResult>('git_diff_file', { projectPath, filePath });
+
+export const gitCommit = (projectPath: string, message: string) =>
+  invoke<GitCommitResult>('git_commit', { projectPath, message });
+
+export const gitPush = (projectPath: string) =>
+  invoke<void>('git_push', { projectPath });
+
+export const gitBranch = (projectPath: string) =>
+  invoke<string>('git_branch', { projectPath });

@@ -1,0 +1,445 @@
+import { create } from 'zustand';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type {
+  Project,
+  Session,
+  Message,
+  ReferenceDir,
+  ClaudeEvent,
+  DisplayBlock,
+} from '../types';
+import * as api from '../lib/api';
+
+// ---------- helpers ----------
+
+export interface DisplayMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  blocks: DisplayBlock[];
+  model: string | null;
+  cost: number | null;
+  duration_ms: number | null;
+  created_at: string;
+}
+
+function parseContentBlocks(content: string): DisplayBlock[] {
+  try {
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) return [{ type: 'text', content }];
+    return parsed.map((block: any): DisplayBlock => {
+      switch (block.type) {
+        case 'thinking':
+          return {
+            type: 'thinking',
+            content: block.thinking ?? block.content ?? '',
+            chars: (block.thinking ?? block.content ?? '').length,
+          };
+        case 'tool_use':
+          // Handle both DisplayBlock format (tool, path) and Claude format (name, input)
+          if (block.tool) {
+            // Already in DisplayBlock format (loaded from DB)
+            return block as DisplayBlock;
+          }
+          return {
+            type: 'tool_use',
+            tool: block.name ?? 'unknown',
+            path:
+              block.input?.file_path ??
+              block.input?.path ??
+              block.input?.filePath,
+            command: block.input?.command,
+          };
+        case 'text':
+          return { type: 'text', content: block.text ?? block.content ?? '' };
+        default:
+          return { type: 'text', content: JSON.stringify(block) };
+      }
+    });
+  } catch {
+    // Not JSON – plain text
+    return content.length > 0 ? [{ type: 'text', content }] : [];
+  }
+}
+
+function toDisplayMessage(msg: Message): DisplayMessage {
+  const blocks =
+    msg.role === 'assistant' ? parseContentBlocks(msg.content) : [];
+  return { ...msg, blocks };
+}
+
+// ---------- store ----------
+
+interface AppState {
+  // data
+  projects: Project[];
+  sessions: Session[];
+  references: ReferenceDir[];
+  messages: DisplayMessage[];
+
+  // active selections
+  activeProjectId: string | null;
+  activeSessionId: string | null;
+
+  // streaming
+  isStreaming: boolean;
+  streamingBlocks: DisplayBlock[];
+
+  // meta
+  totalCost: number;
+  model: string;
+
+  // UI layout (preserved from original)
+  leftPanelWidth: number;
+  rightPanelWidth: number;
+  settingsOpen: boolean;
+  rightPanelTab: 'git' | 'files';
+
+  // actions – data
+  init: () => Promise<void>;
+  selectProject: (id: string) => Promise<void>;
+  selectSession: (id: string) => Promise<void>;
+  createProject: (name: string, path: string) => Promise<void>;
+  createSession: (name: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  deleteSession: (id: string) => Promise<void>;
+  addReference: (path: string, label?: string) => Promise<void>;
+  removeReference: (id: string) => Promise<void>;
+  sendMessage: (content: string) => Promise<void>;
+  stopStreaming: () => Promise<void>;
+  handleClaudeEvent: (event: ClaudeEvent) => void;
+  setModel: (model: string) => void;
+
+  // actions – UI layout
+  setLeftPanelWidth: (width: number) => void;
+  setRightPanelWidth: (width: number) => void;
+  setSettingsOpen: (open: boolean) => void;
+  setRightPanelTab: (tab: 'git' | 'files') => void;
+}
+
+let _unlisten: UnlistenFn | null = null;
+
+export const useAppStore = create<AppState>((set, get) => ({
+  // data
+  projects: [],
+  sessions: [],
+  references: [],
+  messages: [],
+
+  // active
+  activeProjectId: null,
+  activeSessionId: null,
+
+  // streaming
+  isStreaming: false,
+  streamingBlocks: [],
+
+  // meta
+  totalCost: 0,
+  model: 'sonnet',
+
+  // UI
+  leftPanelWidth: 260,
+  rightPanelWidth: 340,
+  settingsOpen: false,
+  rightPanelTab: 'git',
+
+  // -------- data actions --------
+
+  init: async () => {
+    try {
+      const projects = await api.listProjects();
+      set({ projects });
+
+      // Set up claude-event listener once
+      if (!_unlisten) {
+        _unlisten = await listen('claude-event', (event) => {
+          // event.payload is the ClaudeEvent from Rust (with session_id, event_type/type, data)
+          const payload = event.payload as any;
+          get().handleClaudeEvent(payload);
+        });
+      }
+
+      // Auto-select first project if any
+      if (projects.length > 0) {
+        await get().selectProject(projects[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to init:', err);
+    }
+  },
+
+  selectProject: async (id: string) => {
+    set({
+      activeProjectId: id,
+      activeSessionId: null,
+      sessions: [],
+      references: [],
+      messages: [],
+      streamingBlocks: [],
+      isStreaming: false,
+    });
+    try {
+      const [sessions, references] = await Promise.all([
+        api.listSessions(id),
+        api.listReferences(id),
+      ]);
+      set({ sessions, references });
+
+      // Auto-select first session if any
+      if (sessions.length > 0) {
+        await get().selectSession(sessions[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load project data:', err);
+    }
+  },
+
+  selectSession: async (id: string) => {
+    set({
+      activeSessionId: id,
+      messages: [],
+      streamingBlocks: [],
+      isStreaming: false,
+    });
+    try {
+      const rawMessages = await api.getMessages(id);
+      const messages = rawMessages.map(toDisplayMessage);
+
+      // Compute total cost from session data
+      const { sessions } = get();
+      const session = sessions.find((s) => s.id === id);
+      set({
+        messages,
+        totalCost: session?.total_cost ?? 0,
+        model: session?.model ?? 'sonnet',
+      });
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+    }
+  },
+
+  createProject: async (name: string, path: string) => {
+    try {
+      const project = await api.createProject(name, path);
+      set((s) => ({ projects: [...s.projects, project] }));
+      await get().selectProject(project.id);
+      // Auto-create first session so user can start chatting immediately
+      await get().createSession('session 1');
+    } catch (err) {
+      console.error('Failed to create project:', err);
+    }
+  },
+
+  createSession: async (name: string) => {
+    const { activeProjectId } = get();
+    if (!activeProjectId) return;
+    try {
+      const session = await api.createSession(activeProjectId, name);
+      set((s) => ({ sessions: [...s.sessions, session] }));
+      await get().selectSession(session.id);
+    } catch (err) {
+      console.error('Failed to create session:', err);
+    }
+  },
+
+  deleteProject: async (id: string) => {
+    try {
+      await api.deleteProject(id);
+      const { activeProjectId } = get();
+      set((s) => ({ projects: s.projects.filter((p) => p.id !== id) }));
+      if (activeProjectId === id) {
+        const remaining = get().projects;
+        if (remaining.length > 0) {
+          await get().selectProject(remaining[0].id);
+        } else {
+          set({
+            activeProjectId: null,
+            activeSessionId: null,
+            sessions: [],
+            references: [],
+            messages: [],
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    }
+  },
+
+  deleteSession: async (id: string) => {
+    try {
+      await api.deleteSession(id);
+      const { activeSessionId } = get();
+      set((s) => ({ sessions: s.sessions.filter((sess) => sess.id !== id) }));
+      if (activeSessionId === id) {
+        const remaining = get().sessions;
+        if (remaining.length > 0) {
+          await get().selectSession(remaining[0].id);
+        } else {
+          set({ activeSessionId: null, messages: [] });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+    }
+  },
+
+  addReference: async (path: string, label?: string) => {
+    const { activeProjectId } = get();
+    if (!activeProjectId) return;
+    try {
+      const ref = await api.addReference(activeProjectId, path, label);
+      set((s) => ({ references: [...s.references, ref] }));
+    } catch (err) {
+      console.error('Failed to add reference:', err);
+    }
+  },
+
+  removeReference: async (id: string) => {
+    try {
+      await api.removeReference(id);
+      set((s) => ({ references: s.references.filter((r) => r.id !== id) }));
+    } catch (err) {
+      console.error('Failed to remove reference:', err);
+    }
+  },
+
+  sendMessage: async (content: string) => {
+    const { activeSessionId, model } = get();
+    if (!activeSessionId || !content.trim()) return;
+    try {
+      // Save user message to DB
+      const saved = await api.saveMessage(activeSessionId, 'user', content);
+      const displayMsg = toDisplayMessage(saved);
+      set((s) => ({
+        messages: [...s.messages, displayMsg],
+        isStreaming: true,
+        streamingBlocks: [],
+      }));
+
+      // Send to Claude
+      await api.sendChatMessage(activeSessionId, content, model);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      set({ isStreaming: false });
+    }
+  },
+
+  stopStreaming: async () => {
+    const { activeSessionId } = get();
+    if (!activeSessionId) return;
+    try {
+      await api.stopChat(activeSessionId);
+      set({ isStreaming: false });
+    } catch (err) {
+      console.error('Failed to stop chat:', err);
+    }
+  },
+
+  handleClaudeEvent: (rawEvent: ClaudeEvent) => {
+    // Rust emits: { session_id, type, data }
+    // We need to handle the actual structure from claude.rs
+    const evt = rawEvent as any;
+    const eventType: string = evt.event_type ?? evt.type ?? '';
+    const data = evt.data ?? {};
+
+    switch (eventType) {
+      case 'system_init':
+        // Store claude_session_id from data.session_id if needed
+        break;
+
+      case 'assistant': {
+        // data.content is an array of Claude content blocks
+        const content = data.content ?? [];
+        if (!Array.isArray(content)) break;
+
+        const newBlocks: DisplayBlock[] = content.map((block: any): DisplayBlock => {
+          if (block.type === 'thinking') {
+            return {
+              type: 'thinking',
+              content: block.thinking ?? block.content ?? '',
+              chars: (block.thinking ?? block.content ?? '').length,
+            };
+          }
+          if (block.type === 'tool_use') {
+            const input = block.input ?? {};
+            return {
+              type: 'tool_use',
+              tool: block.name ?? 'unknown',
+              path: input.file_path ?? input.path ?? input.filePath,
+              command: input.command,
+            };
+          }
+          if (block.type === 'text') {
+            return { type: 'text', content: block.text ?? block.content ?? '' };
+          }
+          return { type: 'text', content: JSON.stringify(block) };
+        });
+
+        // Accumulate blocks (each assistant event may add more)
+        set((s) => ({ streamingBlocks: [...s.streamingBlocks, ...newBlocks] }));
+        break;
+      }
+
+      case 'result': {
+        // data has total_cost_usd, duration_ms, result, etc.
+        const cost = data.total_cost_usd ?? 0;
+        const duration = data.duration_ms ?? 0;
+
+        const { streamingBlocks, activeSessionId } = get();
+        if (activeSessionId && streamingBlocks.length > 0) {
+          const assistantMsg: DisplayMessage = {
+            id: crypto.randomUUID(),
+            session_id: activeSessionId,
+            role: 'assistant',
+            content: '',
+            blocks: streamingBlocks,
+            model: get().model,
+            cost,
+            duration_ms: duration,
+            created_at: new Date().toISOString(),
+          };
+
+          // Also save to DB
+          api.saveMessage(
+            activeSessionId,
+            'assistant',
+            JSON.stringify(streamingBlocks),
+            get().model,
+            cost,
+            duration,
+          ).catch(console.error);
+
+          set((s) => ({
+            messages: [...s.messages, assistantMsg],
+            streamingBlocks: [],
+            totalCost: s.totalCost + cost,
+            isStreaming: false,
+          }));
+        } else {
+          set({ isStreaming: false, streamingBlocks: [] });
+        }
+        break;
+      }
+
+      default:
+        // 'done', 'error', 'rate_limit_event', etc.
+        if (eventType === 'error') {
+          console.error('Claude error:', data);
+        }
+        // Don't set isStreaming false here — 'result' already does it
+        break;
+    }
+  },
+
+  setModel: (model: string) => set({ model }),
+
+  // -------- UI layout actions --------
+
+  setLeftPanelWidth: (width) => set({ leftPanelWidth: width }),
+  setRightPanelWidth: (width) => set({ rightPanelWidth: width }),
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
+}));

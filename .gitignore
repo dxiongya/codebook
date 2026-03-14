@@ -1,0 +1,8 @@
+node_modules/
+dist/
+target/
+*.pen
+.DS_Store
+*.db
+*.db-shm
+*.db-wal
