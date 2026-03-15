@@ -180,6 +180,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       const projects = await api.listProjects();
       set({ projects });
 
+      // Restore cached claude init data
+      try {
+        const cached = await api.getSetting('claude_init_data');
+        if (cached) {
+          set({ claudeInitData: JSON.parse(cached) });
+        }
+      } catch { /* ignore */ }
+
       // Set up claude-event listener once
       if (!_unlisten) {
         _unlisten = await listen('claude-event', (event) => {
@@ -474,6 +482,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           permissionMode: data.permissionMode ?? '',
         };
         set({ claudeInitData: initData });
+        // Persist so it's available on next app launch
+        api.setSetting('claude_init_data', JSON.stringify(initData)).catch(() => {});
         break;
       }
 

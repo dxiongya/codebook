@@ -75,6 +75,22 @@ export const gitPush = (projectPath: string) =>
 export const gitBranch = (projectPath: string) =>
   invoke<string>('git_branch', { projectPath });
 
+// Claude CLI config (read directly from filesystem)
+export const getClaudeCliConfig = () =>
+  invoke<{
+    plugins: { name: string; version: string; scope: string }[];
+    skills: string[];
+    mcp_servers: Record<string, any>;
+    settings: Record<string, any>;
+  }>('get_claude_cli_config');
+
+// Project-level Claude config
+export const getProjectClaudeConfig = (projectPath: string) =>
+  invoke<{ settings_json: any; settings_local_json: any; claude_md: string | null; has_claude_dir: boolean }>('get_project_claude_config', { projectPath });
+
+export const saveProjectClaudeConfig = (projectPath: string, fileType: string, content: string) =>
+  invoke<void>('save_project_claude_config', { projectPath, fileType, content });
+
 // Checkpoints
 export const saveCheckpoint = (sessionId: string, messageId: string, gitCommitHash: string | null, gitDiffSummary: string | null, projectPath: string) =>
   invoke<Checkpoint>('save_checkpoint', { sessionId, messageId, gitCommitHash, gitDiffSummary, projectPath });

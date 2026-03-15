@@ -193,6 +193,80 @@ fn rollback_to_checkpoint(project_path: String, commit_hash: String) -> Result<(
 }
 
 #[derive(serde::Serialize)]
+struct ClaudeCliConfig {
+    plugins: Vec<serde_json::Value>,
+    skills: Vec<String>,
+    mcp_servers: serde_json::Value,
+    settings: serde_json::Value,
+}
+
+#[tauri::command]
+fn get_claude_cli_config() -> Result<ClaudeCliConfig, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let claude_dir = home.join(".claude");
+
+    // Read installed plugins
+    let plugins_path = claude_dir.join("plugins/installed_plugins.json");
+    let plugins = if plugins_path.exists() {
+        let content = std::fs::read_to_string(&plugins_path).unwrap_or_default();
+        let parsed: serde_json::Value = serde_json::from_str(&content).unwrap_or_default();
+        if let Some(obj) = parsed.get("plugins").and_then(|p| p.as_object()) {
+            obj.iter().map(|(name, entries)| {
+                let version = entries.as_array()
+                    .and_then(|arr| arr.first())
+                    .and_then(|e| e.get("version"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let scope = entries.as_array()
+                    .and_then(|arr| arr.first())
+                    .and_then(|e| e.get("scope"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("user");
+                serde_json::json!({ "name": name, "version": version, "scope": scope })
+            }).collect()
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
+    // Read skills (directories under ~/.claude/skills/)
+    let skills_dir = claude_dir.join("skills");
+    let skills = if skills_dir.exists() {
+        std::fs::read_dir(&skills_dir)
+            .map(|rd| {
+                rd.filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    // Read settings.json (contains MCP servers, permissions, etc)
+    let settings_path = claude_dir.join("settings.json");
+    let settings: serde_json::Value = if settings_path.exists() {
+        let content = std::fs::read_to_string(&settings_path).unwrap_or_default();
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        serde_json::Value::Object(serde_json::Map::new())
+    };
+
+    let mcp_servers = settings.get("mcpServers").cloned()
+        .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+
+    Ok(ClaudeCliConfig {
+        plugins,
+        skills,
+        mcp_servers,
+        settings,
+    })
+}
+
+#[derive(serde::Serialize)]
 struct GitSnapshot {
     commit_hash: String,
     diff_summary: String,
@@ -621,6 +695,81 @@ async fn stop_remote_server(remote: State<'_, RemoteState>) -> Result<(), String
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – Project-level Claude config
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+struct ProjectClaudeConfig {
+    settings_json: Option<serde_json::Value>,
+    settings_local_json: Option<serde_json::Value>,
+    claude_md: Option<String>,
+    has_claude_dir: bool,
+}
+
+#[tauri::command]
+fn get_project_claude_config(project_path: String) -> Result<ProjectClaudeConfig, String> {
+    let path = std::path::Path::new(&project_path);
+    let claude_dir = path.join(".claude");
+    let has_claude_dir = claude_dir.exists();
+
+    // Read .claude/settings.json
+    let settings_path = claude_dir.join("settings.json");
+    let settings_json = if settings_path.exists() {
+        let content = std::fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+        Some(serde_json::from_str(&content).unwrap_or_default())
+    } else {
+        None
+    };
+
+    // Read .claude/settings.local.json
+    let local_path = claude_dir.join("settings.local.json");
+    let settings_local_json = if local_path.exists() {
+        let content = std::fs::read_to_string(&local_path).map_err(|e| e.to_string())?;
+        Some(serde_json::from_str(&content).unwrap_or_default())
+    } else {
+        None
+    };
+
+    // Read CLAUDE.md
+    let claude_md_path = path.join("CLAUDE.md");
+    let claude_md = if claude_md_path.exists() {
+        Some(std::fs::read_to_string(&claude_md_path).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+
+    Ok(ProjectClaudeConfig {
+        settings_json,
+        settings_local_json,
+        claude_md,
+        has_claude_dir,
+    })
+}
+
+#[tauri::command]
+fn save_project_claude_config(
+    project_path: String,
+    file_type: String,
+    content: String,
+) -> Result<(), String> {
+    let path = std::path::Path::new(&project_path);
+    let claude_dir = path.join(".claude");
+
+    // Create .claude dir if needed
+    std::fs::create_dir_all(&claude_dir).map_err(|e| e.to_string())?;
+
+    let file_path = match file_type.as_str() {
+        "settings" => claude_dir.join("settings.json"),
+        "local" => claude_dir.join("settings.local.json"),
+        "claude_md" => path.join("CLAUDE.md"),
+        _ => return Err("Invalid file type".to_string()),
+    };
+
+    std::fs::write(&file_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // App entry point
 // ---------------------------------------------------------------------------
 
@@ -703,6 +852,11 @@ pub fn run() {
             // File explorer
             list_dir,
             read_file_content,
+            // Claude CLI config
+            get_claude_cli_config,
+            // Project-level Claude config
+            get_project_claude_config,
+            save_project_claude_config,
             // Checkpoints
             save_checkpoint,
             get_checkpoints,

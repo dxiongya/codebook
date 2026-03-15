@@ -211,6 +211,176 @@ function TextAreaInput({
 
 // ---------- section views ----------
 
+function ProjectClaudeConfigSection() {
+  const projects = useAppStore((s) => s.projects);
+  const activeProjectId = useAppStore((s) => s.activeProjectId);
+  const activeProject = projects.find((p) => p.id === activeProjectId);
+
+  const [projectConfig, setProjectConfig] = useState<{
+    settings_json: any;
+    settings_local_json: any;
+    claude_md: string | null;
+    has_claude_dir: boolean;
+  } | null>(null);
+  const [editingFile, setEditingFile] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+
+  useEffect(() => {
+    if (activeProject?.path) {
+      api.getProjectClaudeConfig(activeProject.path).then(setProjectConfig).catch(() => setProjectConfig(null));
+    } else {
+      setProjectConfig(null);
+    }
+  }, [activeProject?.path]);
+
+  const reload = () => {
+    if (activeProject?.path) {
+      api.getProjectClaudeConfig(activeProject.path).then(setProjectConfig).catch(() => setProjectConfig(null));
+    }
+  };
+
+  const handleEdit = (fileType: string, content: string) => {
+    setEditingFile(fileType);
+    setEditContent(content);
+  };
+
+  const handleCreate = async (fileType: string) => {
+    if (!activeProject?.path) return;
+    const defaults: Record<string, string> = {
+      settings: '{}',
+      local: '{}',
+      claude_md: '# Project Guidelines\n\n',
+    };
+    await api.saveProjectClaudeConfig(activeProject.path, fileType, defaults[fileType] ?? '{}');
+    reload();
+  };
+
+  const handleSave = async () => {
+    if (!activeProject?.path || !editingFile) return;
+    await api.saveProjectClaudeConfig(activeProject.path, editingFile, editContent);
+    setEditingFile(null);
+    setEditContent('');
+    reload();
+  };
+
+  const handleCancel = () => {
+    setEditingFile(null);
+    setEditContent('');
+  };
+
+  const projectName = activeProject?.path?.split('/').pop() ?? '';
+
+  const btnStyle: React.CSSProperties = {
+    padding: '4px 12px',
+    border: '1px solid #2a2a2a',
+    background: 'transparent',
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    borderRadius: 0,
+  };
+
+  const renderFileSection = (
+    label: string,
+    fileType: string,
+    content: any,
+    isJson: boolean,
+  ) => {
+    const hasContent = content != null;
+    const displayContent = hasContent
+      ? isJson
+        ? JSON.stringify(content, null, 2)
+        : content
+      : null;
+
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 6 }}>{label}</div>
+        {editingFile === fileType ? (
+          <>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={8}
+              style={{
+                width: '100%',
+                maxWidth: 500,
+                background: '#0F0F0F',
+                border: '1px solid #2a2a2a',
+                padding: 12,
+                fontSize: 12,
+                fontFamily: 'JetBrains Mono, monospace',
+                color: '#FAFAFA',
+                resize: 'vertical',
+                outline: 'none',
+                borderRadius: 0,
+              }}
+            />
+            <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
+              <button style={{ ...btnStyle, background: '#10B981', color: '#0A0A0A', fontWeight: 500 }} onClick={handleSave}>save</button>
+              <button style={btnStyle} onClick={handleCancel}>cancel</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              style={{
+                background: '#0F0F0F',
+                border: '1px solid #2a2a2a',
+                padding: 12,
+                fontSize: 12,
+                fontFamily: 'JetBrains Mono, monospace',
+                color: hasContent ? '#FAFAFA' : '#4B5563',
+                maxHeight: 200,
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                maxWidth: 500,
+              }}
+            >
+              {hasContent ? displayContent : '(not found)'}
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', gap: 6, justifyContent: 'flex-end', maxWidth: 500 }}>
+              {hasContent && (
+                <button style={btnStyle} onClick={() => handleEdit(fileType, displayContent!)}>edit</button>
+              )}
+              {!hasContent && (
+                <button style={btnStyle} onClick={() => handleCreate(fileType)}>create</button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  if (!activeProjectId) {
+    return (
+      <div style={{ borderTop: '1px solid #2a2a2a', marginTop: 24, paddingTop: 24 }}>
+        <SectionHeader>project config</SectionHeader>
+        <div style={{ color: '#4B5563', fontSize: 12 }}>select a project to view project config</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid #2a2a2a', marginTop: 24, paddingTop: 24 }}>
+      <div style={{ color: '#6B7280', fontSize: 11, marginBottom: 12 }}>
+        // project config — {projectName}/
+      </div>
+      {projectConfig ? (
+        <>
+          {renderFileSection('.claude/settings.json', 'settings', projectConfig.settings_json, true)}
+          {renderFileSection('.claude/settings.local.json', 'local', projectConfig.settings_local_json, true)}
+          {renderFileSection('CLAUDE.md', 'claude_md', projectConfig.claude_md, false)}
+        </>
+      ) : (
+        <div style={{ color: '#4B5563', fontSize: 12 }}>loading project config...</div>
+      )}
+    </div>
+  );
+}
+
 function ClaudeCodeSection() {
   const claudeInitData = useAppStore((s) => s.claudeInitData);
 
@@ -220,7 +390,12 @@ function ClaudeCodeSection() {
   const [maxBudget, setMaxBudget] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
 
-  // Load settings on mount
+  // Direct filesystem data (always available, no message needed)
+  const [fsPlugins, setFsPlugins] = useState<{ name: string; version: string; scope: string }[]>([]);
+  const [fsSkills, setFsSkills] = useState<string[]>([]);
+  const [_fsMcpServers, setFsMcpServers] = useState<Record<string, any>>({});
+
+  // Load settings + filesystem data on mount
   useEffect(() => {
     const load = async () => {
       const [m, pm, el, mb, sp] = await Promise.all([
@@ -235,6 +410,14 @@ function ClaudeCodeSection() {
       if (el) setEffortLevel(el);
       if (mb) setMaxBudget(mb);
       if (sp) setSystemPrompt(sp);
+
+      // Load directly from Claude CLI filesystem
+      try {
+        const config = await api.getClaudeCliConfig();
+        setFsPlugins(config.plugins);
+        setFsSkills(config.skills);
+        setFsMcpServers(config.mcp_servers);
+      } catch { /* ignore */ }
     };
     load();
   }, []);
@@ -306,25 +489,28 @@ function ClaudeCodeSection() {
       />
 
       <SectionHeader>plugins</SectionHeader>
-      {claudeInitData?.plugins && claudeInitData.plugins.length > 0 ? (
+      {fsPlugins.length > 0 ? (
         <div style={{ border: '1px solid #2a2a2a', maxWidth: 400 }}>
-          {claudeInitData.plugins.map((p, i) => (
+          {fsPlugins.map((p, i) => (
             <div
               key={i}
-              className="flex items-center"
+              className="flex items-center justify-between"
               style={{
                 padding: '8px 12px',
                 gap: 8,
-                borderBottom: i < claudeInitData.plugins.length - 1 ? '1px solid #1a1a1a' : 'none',
+                borderBottom: i < fsPlugins.length - 1 ? '1px solid #1a1a1a' : 'none',
               }}
             >
-              <span style={{ color: '#10B981', fontSize: 12 }}>&#10003;</span>
-              <span style={{ color: '#FAFAFA', fontSize: 12 }}>{p.name}</span>
+              <div className="flex items-center" style={{ gap: 8 }}>
+                <span style={{ color: '#10B981', fontSize: 12 }}>&#10003;</span>
+                <span style={{ color: '#FAFAFA', fontSize: 12 }}>{p.name}</span>
+              </div>
+              <span style={{ color: '#4B5563', fontSize: 10 }}>v{p.version} · {p.scope}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no plugins detected</div>
+        <div style={{ color: '#4B5563', fontSize: 12 }}>no plugins installed</div>
       )}
 
       <SectionHeader>mcp servers</SectionHeader>
@@ -390,9 +576,9 @@ function ClaudeCodeSection() {
       )}
 
       <SectionHeader>skills</SectionHeader>
-      {claudeInitData?.skills && claudeInitData.skills.length > 0 ? (
+      {(fsSkills.length > 0 || (claudeInitData?.skills && claudeInitData.skills.length > 0)) ? (
         <div className="flex flex-wrap" style={{ gap: 6, maxWidth: 500 }}>
-          {claudeInitData.skills.map((skill) => (
+          {(fsSkills.length > 0 ? fsSkills : claudeInitData?.skills ?? []).map((skill) => (
             <span
               key={skill}
               style={{
@@ -437,6 +623,8 @@ function ClaudeCodeSection() {
       <div style={{ color: '#F59E0B', fontSize: 12 }}>
         {claudeInitData?.permissionMode ?? 'unknown'}
       </div>
+
+      <ProjectClaudeConfigSection />
     </div>
   );
 }
