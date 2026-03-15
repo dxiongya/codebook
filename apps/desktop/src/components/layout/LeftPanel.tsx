@@ -261,6 +261,20 @@ export function LeftPanel() {
                       )}
                     </div>
                   </div>
+
+                  {/* config shortcut */}
+                  <div style={{ padding: '6px 0 0 0', borderTop: '1px solid #1a1a1a', marginTop: 4 }}>
+                    <div
+                      onClick={() => useAppStore.getState().setRightPanelTab('config')}
+                      className="flex items-center"
+                      style={{ padding: '5px 10px 5px 20px', gap: 6, cursor: 'pointer' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#1a1a1a')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{ color: '#6B7280', fontSize: 11 }}>⚙</span>
+                      <span style={{ color: '#6B7280', fontSize: 11 }}>config</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

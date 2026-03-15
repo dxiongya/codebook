@@ -113,7 +113,7 @@ interface AppState {
   leftPanelWidth: number;
   rightPanelWidth: number;
   settingsOpen: boolean;
-  rightPanelTab: 'git' | 'files';
+  rightPanelTab: 'git' | 'files' | 'config';
 
   // actions – data
   init: () => Promise<void>;
@@ -134,7 +134,7 @@ interface AppState {
   setLeftPanelWidth: (width: number) => void;
   setRightPanelWidth: (width: number) => void;
   setSettingsOpen: (open: boolean) => void;
-  setRightPanelTab: (tab: 'git' | 'files') => void;
+  setRightPanelTab: (tab: 'git' | 'files' | 'config') => void;
 }
 
 let _unlisten: UnlistenFn | null = null;

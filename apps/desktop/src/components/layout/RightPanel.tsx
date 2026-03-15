@@ -227,12 +227,128 @@ function FullscreenFileTreeNode({
   );
 }
 
+function ProjectConfigView({ projectPath }: { projectPath: string | undefined }) {
+  const [config, setConfig] = useState<{ settings_json: any; settings_local_json: any; claude_md: string | null; has_claude_dir: boolean } | null>(null);
+  const [editingFile, setEditingFile] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+
+  useEffect(() => {
+    if (projectPath) {
+      api.getProjectClaudeConfig(projectPath).then(setConfig).catch(() => setConfig(null));
+    }
+  }, [projectPath]);
+
+  const reload = () => {
+    if (projectPath) api.getProjectClaudeConfig(projectPath).then(setConfig).catch(() => {});
+  };
+
+  const handleSave = async () => {
+    if (!projectPath || !editingFile) return;
+    await api.saveProjectClaudeConfig(projectPath, editingFile, editContent);
+    setEditingFile(null);
+    reload();
+  };
+
+  const handleCreate = async (fileType: string) => {
+    if (!projectPath) return;
+    const defaults: Record<string, string> = {
+      settings: '{\n  \n}',
+      local: '{\n  \n}',
+      claude_md: '# Project Guidelines\n\n',
+    };
+    await api.saveProjectClaudeConfig(projectPath, fileType, defaults[fileType] ?? '{}');
+    reload();
+  };
+
+  if (!projectPath) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <span style={{ color: '#4B5563', fontSize: 12 }}>// select a project</span>
+      </div>
+    );
+  }
+
+  const items = [
+    { label: '.claude/settings.json', type: 'settings', content: config?.settings_json, isJson: true },
+    { label: '.claude/settings.local.json', type: 'local', content: config?.settings_local_json, isJson: true },
+    { label: 'CLAUDE.md', type: 'claude_md', content: config?.claude_md, isJson: false },
+  ];
+
+  return (
+    <div className="flex-1 overflow-y-auto" style={{ padding: '12px 0' }}>
+      <div style={{ padding: '4px 16px 12px', color: '#6B7280', fontSize: 11 }}>
+        // project config
+      </div>
+      {items.map(({ label, type, content, isJson }) => {
+        const hasContent = content != null;
+        const displayText = hasContent ? (isJson ? JSON.stringify(content, null, 2) : content) : null;
+        const isEditing = editingFile === type;
+
+        return (
+          <div key={type} style={{ padding: '0 16px', marginBottom: 16 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+              <span style={{ color: '#9CA3AF', fontSize: 12 }}>{label}</span>
+              {!isEditing && (
+                <span
+                  onClick={() => {
+                    if (hasContent) {
+                      setEditingFile(type);
+                      setEditContent(displayText!);
+                    } else {
+                      handleCreate(type);
+                    }
+                  }}
+                  style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#10B981')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+                >
+                  {hasContent ? 'edit' : 'create'}
+                </span>
+              )}
+            </div>
+            {isEditing ? (
+              <div>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={10}
+                  style={{
+                    width: '100%', background: '#0F0F0F', border: '1px solid #10B981',
+                    padding: 10, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                    color: '#FAFAFA', resize: 'vertical', outline: 'none',
+                  }}
+                />
+                <div className="flex" style={{ gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                  <span onClick={handleSave} style={{ color: '#10B981', fontSize: 11, cursor: 'pointer' }}>save</span>
+                  <span onClick={() => setEditingFile(null)} style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}>cancel</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: '#0F0F0F', border: '1px solid #2a2a2a', padding: 10,
+                fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                color: hasContent ? '#FAFAFA' : '#4B5563',
+                maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap',
+              }}>
+                {hasContent ? displayText : '(not found)'}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function RightPanel() {
   const { projects, activeProjectId, isStreaming } = useAppStore();
   const activeProject = projects.find((p) => p.id === activeProjectId);
   const projectPath = activeProject?.path;
 
-  const [activeTab, setActiveTab] = useState<'git' | 'files'>('git');
+  const rightPanelTab = useAppStore((s) => s.rightPanelTab);
+  const setRightPanelTab = useAppStore((s) => s.setRightPanelTab);
+  const activeTab = rightPanelTab;
+  const setActiveTab = setRightPanelTab;
   const [branch, setBranch] = useState<string>('');
   const [changes, setChanges] = useState<FileChange[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -413,6 +529,7 @@ export function RightPanel() {
         {([
           { key: 'git' as const, label: '// changes' },
           { key: 'files' as const, label: '// explorer' },
+          { key: 'config' as const, label: '// config' },
         ]).map(({ key, label }) => (
           <button
             key={key}
@@ -630,7 +747,7 @@ export function RightPanel() {
             </div>
           </>
         )
-      ) : (
+      ) : activeTab === 'files' ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* file tree (scrollable, up to 40%) */}
           <div className="shrink-0 overflow-y-auto" style={{ maxHeight: viewingFile ? '40%' : '100%', padding: '8px 0' }}>
@@ -719,7 +836,9 @@ export function RightPanel() {
           )}
         </div>
 
-      )}
+      ) : activeTab === 'config' ? (
+        <ProjectConfigView projectPath={projectPath} />
+      ) : null}
 
       {/* fullscreen file viewer — VS Code style with sidebar */}
       {fullscreenFile && (
