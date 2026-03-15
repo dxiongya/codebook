@@ -243,28 +243,50 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
           <span style={{ color: '#06B6D4', fontSize: 12, fontWeight: 700 }}>{'>'} you</span>
           <span style={{ color: '#4B5563', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
           {checkpoint && checkpoint.git_commit_hash && (
-            <span style={{ marginLeft: 'auto' }}>
+            <div style={{ marginLeft: 'auto' }}>
               {rollbackState === 'confirm' ? (
-                <span style={{ color: '#6B7280', fontSize: 10 }}>
-                  rollback?{' '}
-                  <span onClick={() => confirmRollback(checkpoint)} style={{ color: '#10B981', cursor: 'pointer' }}>[yes]</span>
-                  {' '}
-                  <span onClick={cancelRollback} style={{ color: '#EF4444', cursor: 'pointer' }}>[no]</span>
-                </span>
+                <div className="flex items-center" style={{ gap: 6 }}>
+                  <span style={{ color: '#9CA3AF', fontSize: 11 }}>rollback to this point?</span>
+                  <span
+                    onClick={() => confirmRollback(checkpoint)}
+                    style={{
+                      color: '#0A0A0A', background: '#10B981', fontSize: 11, fontWeight: 500,
+                      padding: '2px 10px', cursor: 'pointer',
+                    }}
+                  >
+                    yes
+                  </span>
+                  <span
+                    onClick={cancelRollback}
+                    style={{
+                      color: '#9CA3AF', border: '1px solid #2a2a2a', fontSize: 11,
+                      padding: '2px 10px', cursor: 'pointer',
+                    }}
+                  >
+                    no
+                  </span>
+                </div>
               ) : rollbackState === 'loading' ? (
-                <span style={{ color: '#F59E0B', fontSize: 10 }}>rolling back...</span>
+                <span style={{ color: '#F59E0B', fontSize: 11 }}>rolling back...</span>
               ) : rollbackState === 'done' || rollbackState === 'error' ? (
-                <span style={{ color: rollbackState === 'done' ? '#10B981' : '#EF4444', fontSize: 10 }}>{rollbackMsg}</span>
+                <span style={{ color: rollbackState === 'done' ? '#10B981' : '#EF4444', fontSize: 11 }}>{rollbackMsg}</span>
               ) : (
-                <span
+                <div
                   onClick={() => handleRollback(checkpoint)}
-                  style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
-                  title={`Checkpoint: ${checkpoint.git_commit_hash}`}
+                  className="flex items-center"
+                  style={{
+                    gap: 5, cursor: 'pointer', padding: '2px 8px',
+                    border: '1px solid #2a2a2a', background: '#0F0F0F',
+                  }}
+                  title={`checkpoint: ${checkpoint.git_commit_hash}\n${checkpoint.git_diff_summary ?? 'no changes'}`}
                 >
-                  &#x2691; {checkpoint.git_commit_hash.slice(0, 7)}
-                </span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  <span style={{ color: '#9CA3AF', fontSize: 11 }}>{checkpoint.git_commit_hash.slice(0, 7)}</span>
+                </div>
               )}
-            </span>
+            </div>
           )}
         </div>
         {/* user content — design: padding [12,16], border rgba blue */}

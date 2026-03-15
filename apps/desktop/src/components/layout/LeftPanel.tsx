@@ -80,10 +80,12 @@ export function LeftPanel() {
           className="flex items-center justify-between"
           style={{ padding: '6px 16px' }}
         >
-          <span style={{ color: '#6B7280', fontSize: 11 }}>// projects</span>
+          <span style={{ color: '#6B7280', fontSize: 12 }}>// projects</span>
           <span
             onClick={handleAddProject}
-            style={{ color: '#10B981', fontSize: 11, cursor: 'pointer' }}
+            style={{ color: '#10B981', fontSize: 12, cursor: 'pointer' }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
           >
             [+]
           </span>
@@ -135,7 +137,7 @@ export function LeftPanel() {
                           className="flex items-center"
                           onClick={() => selectSession(session.id)}
                           style={{
-                            padding: '5px 10px',
+                            padding: '7px 10px',
                             gap: 8,
                             cursor: 'pointer',
                             borderLeft: isActive ? '2px solid #10B981' : '2px solid transparent',
@@ -143,17 +145,17 @@ export function LeftPanel() {
                           }}
                         >
                           <span style={{
-                            width: 5, height: 5, borderRadius: '50%',
+                            width: 6, height: 6, borderRadius: '50%',
                             background: isActive ? '#10B981' : '#4B5563',
                             flexShrink: 0,
                           }} />
                           <span style={{
                             color: isActive ? '#10B981' : '#9CA3AF',
-                            fontSize: 12, flex: 1,
+                            fontSize: 13, flex: 1,
                           }}>
                             {session.name}
                           </span>
-                          <span style={{ color: '#4B5563', fontSize: 10 }}>
+                          <span style={{ color: '#4B5563', fontSize: 11 }}>
                             {formatTime(session.updated_at)}
                           </span>
                           <span
@@ -161,7 +163,13 @@ export function LeftPanel() {
                               e.stopPropagation();
                               deleteSession(session.id);
                             }}
-                            style={{ color: '#4B5563', fontSize: 9, cursor: 'pointer', opacity: 0.5, marginLeft: 2 }}
+                            style={{
+                              color: '#4B5563', fontSize: 14, cursor: 'pointer',
+                              padding: '0 4px', lineHeight: 1,
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
+                            title="delete session"
                           >
                             ×
                           </span>
@@ -169,31 +177,39 @@ export function LeftPanel() {
                       );
                     })}
                     {sessions.length === 0 && (
-                      <div style={{ padding: '5px 10px', color: '#4B5563', fontSize: 11 }}>
+                      <div style={{ padding: '7px 10px', color: '#4B5563', fontSize: 12 }}>
                         no sessions yet
                       </div>
                     )}
                   </div>
 
-                  {/* new session button — subtle */}
+                  {/* new session button */}
                   <div
                     onClick={handleNewSession}
-                    style={{ padding: '3px 10px 3px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    className="flex items-center"
+                    style={{
+                      padding: '8px 10px 8px 20px', cursor: 'pointer', gap: 6,
+                      borderTop: '1px solid #1a1a1a', marginTop: 2,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#1a1a1a')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <span style={{ color: '#4B5563', fontSize: 10 }}>+</span>
-                    <span style={{ color: '#4B5563', fontSize: 10 }}>new session</span>
+                    <span style={{ color: '#10B981', fontSize: 13 }}>+</span>
+                    <span style={{ color: '#6B7280', fontSize: 12 }}>new session</span>
                   </div>
 
                   {/* references */}
                   <div style={{ padding: '6px 0 0 0', borderTop: '1px solid #1a1a1a', marginTop: 4 }}>
                     <div
                       className="flex items-center justify-between"
-                      style={{ padding: '3px 16px 3px 20px' }}
+                      style={{ padding: '6px 16px 4px 20px' }}
                     >
-                      <span style={{ color: '#4B5563', fontSize: 10 }}>// refs</span>
+                      <span style={{ color: '#4B5563', fontSize: 11 }}>// refs</span>
                       <span
                         onClick={handleAddReference}
-                        style={{ color: '#06B6D4', fontSize: 9, cursor: 'pointer' }}
+                        style={{ color: '#06B6D4', fontSize: 11, cursor: 'pointer' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
                       >
                         [+]
                       </span>
@@ -208,22 +224,25 @@ export function LeftPanel() {
                             e.dataTransfer.setData('text/plain', ref.path);
                             e.dataTransfer.effectAllowed = 'copy';
                           }}
-                          style={{ padding: '3px 10px 3px 10px', gap: 6, cursor: 'grab' }}
+                          style={{ padding: '5px 10px', gap: 6, cursor: 'grab' }}
                         >
-                          <span style={{ color: '#06B6D4', fontSize: 9 }}>→</span>
-                          <span style={{ color: '#06B6D4', fontSize: 11, flex: 1, opacity: 0.8 }}>
+                          <span style={{ color: '#06B6D4', fontSize: 11 }}>→</span>
+                          <span style={{ color: '#06B6D4', fontSize: 12, flex: 1, opacity: 0.85 }}>
                             {ref.label ?? ref.path.split('/').filter(Boolean).pop() ?? ref.path}/
                           </span>
                           <span
                             onClick={() => removeReference(ref.id)}
-                            style={{ color: '#4B5563', fontSize: 9, cursor: 'pointer', opacity: 0.5 }}
+                            style={{ color: '#4B5563', fontSize: 13, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
+                            title="remove reference"
                           >
                             ×
                           </span>
                         </div>
                       ))}
                       {references.length === 0 && (
-                        <div style={{ padding: '3px 10px', color: '#4B5563', fontSize: 10 }}>
+                        <div style={{ padding: '5px 10px', color: '#4B5563', fontSize: 11 }}>
                           no refs
                         </div>
                       )}

@@ -231,6 +231,138 @@ fn get_git_snapshot(project_path: String) -> Result<GitSnapshot, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – Import CLI sessions
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn import_cli_sessions(
+    db: State<DbState>,
+    project_path: String,
+    project_id: String,
+) -> Result<Vec<Session>, String> {
+    // Find ~/.claude/history.jsonl
+    let home = dirs::home_dir().ok_or_else(|| "Cannot determine home directory".to_string())?;
+    let history_path = home.join(".claude").join("history.jsonl");
+
+    if !history_path.exists() {
+        return Ok(vec![]);
+    }
+
+    let content =
+        std::fs::read_to_string(&history_path).map_err(|e| format!("Failed to read history.jsonl: {e}"))?;
+
+    // Parse each line and filter by project_path
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct HistoryEntry {
+        display: Option<String>,
+        #[serde(default)]
+        timestamp: Option<i64>,
+        project: Option<String>,
+        session_id: Option<String>,
+    }
+
+    // Collect matching entries grouped by sessionId
+    let mut session_map: std::collections::HashMap<String, Vec<HistoryEntry>> =
+        std::collections::HashMap::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let entry: HistoryEntry = match serde_json::from_str(line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        // Filter: project must match
+        let proj = match &entry.project {
+            Some(p) => p.clone(),
+            None => continue,
+        };
+        if proj != project_path {
+            continue;
+        }
+        let sid = match &entry.session_id {
+            Some(s) => s.clone(),
+            None => continue,
+        };
+        session_map.entry(sid).or_default().push(entry);
+    }
+
+    if session_map.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Check which claude_session_ids are already imported
+    let existing: std::collections::HashSet<String> = {
+        let conn = db.0.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT claude_session_id FROM sessions WHERE project_id = ?1 AND claude_session_id IS NOT NULL")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(rusqlite::params![project_id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+
+    let mut imported: Vec<Session> = Vec::new();
+
+    for (claude_sid, mut entries) in session_map {
+        // Skip if already imported
+        if existing.contains(&claude_sid) {
+            continue;
+        }
+
+        // Sort entries by timestamp
+        entries.sort_by_key(|e| e.timestamp.unwrap_or(0));
+
+        // Session name = first message truncated to 30 chars
+        let first_display = entries
+            .first()
+            .and_then(|e| e.display.as_deref())
+            .unwrap_or("CLI Session");
+        let name: String = if first_display.len() > 30 {
+            format!("{}...", &first_display[..30])
+        } else {
+            first_display.to_string()
+        };
+
+        // Create session in DB
+        let now = chrono::Utc::now().to_rfc3339();
+        let session_id = uuid::Uuid::new_v4().to_string();
+        {
+            let conn = db.0.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO sessions (id, project_id, name, claude_session_id, model, total_cost, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, NULL, NULL, ?5, ?6)",
+                rusqlite::params![session_id, project_id, name, claude_sid, now, now],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        // Save each user message
+        for entry in &entries {
+            if let Some(display) = &entry.display {
+                let _ = db.0.save_message(&session_id, "user", display, None, None, None);
+            }
+        }
+
+        imported.push(Session {
+            id: session_id,
+            project_id: project_id.clone(),
+            name,
+            claude_session_id: Some(claude_sid),
+            model: None,
+            total_cost: None,
+            created_at: now.clone(),
+            updated_at: now,
+        });
+    }
+
+    Ok(imported)
+}
+
+// ---------------------------------------------------------------------------
 // Tauri commands – Chat (async, interacts with Claude CLI)
 // ---------------------------------------------------------------------------
 
@@ -320,6 +452,22 @@ async fn send_chat_message(
 #[tauri::command]
 async fn stop_chat(claude: State<'_, ClaudeState>, session_id: String) -> Result<(), String> {
     claude.0.stop(&session_id).await
+}
+
+#[tauri::command]
+async fn is_session_streaming(
+    claude: State<'_, ClaudeState>,
+    session_id: String,
+) -> Result<bool, String> {
+    Ok(claude.0.is_running(&session_id).await)
+}
+
+#[tauri::command]
+async fn get_streaming_buffer(
+    claude: State<'_, ClaudeState>,
+    session_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    Ok(claude.0.get_buffer(&session_id).await)
 }
 
 // ---------------------------------------------------------------------------
@@ -548,6 +696,10 @@ pub fn run() {
             // Chat
             send_chat_message,
             stop_chat,
+            is_session_streaming,
+            get_streaming_buffer,
+            // CLI import
+            import_cli_sessions,
             // File explorer
             list_dir,
             read_file_content,

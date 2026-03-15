@@ -87,3 +87,14 @@ export const rollbackToCheckpoint = (projectPath: string, commitHash: string) =>
 
 export const getGitSnapshot = (projectPath: string) =>
   invoke<GitSnapshot>('get_git_snapshot', { projectPath });
+
+// CLI session import
+export const importCliSessions = (projectPath: string, projectId: string) =>
+  invoke<Session[]>('import_cli_sessions', { projectPath, projectId });
+
+// Streaming buffer
+export const isSessionStreaming = (sessionId: string) =>
+  invoke<boolean>('is_session_streaming', { sessionId });
+
+export const getStreamingBuffer = (sessionId: string) =>
+  invoke<any[]>('get_streaming_buffer', { sessionId });

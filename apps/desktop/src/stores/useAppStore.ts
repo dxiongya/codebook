@@ -200,9 +200,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       ]);
       set({ sessions, references });
 
+      // Try importing CLI sessions for this project
+      const activeProject = get().projects.find((p) => p.id === id);
+      if (activeProject) {
+        try {
+          const imported = await api.importCliSessions(activeProject.path, id);
+          if (imported.length > 0) {
+            set((s) => ({ sessions: [...s.sessions, ...imported] }));
+          }
+        } catch {
+          /* ignore if import fails */
+        }
+      }
+
       // Auto-select first session if any
-      if (sessions.length > 0) {
-        await get().selectSession(sessions[0].id);
+      const allSessions = get().sessions;
+      if (allSessions.length > 0) {
+        await get().selectSession(allSessions[0].id);
       }
     } catch (err) {
       console.error('Failed to load project data:', err);
@@ -218,11 +232,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       checkpoints: [],
     });
     try {
-      const [rawMessages, checkpoints] = await Promise.all([
+      const [rawMessages, checkpoints, contextStr] = await Promise.all([
         api.getMessages(id),
         api.getCheckpoints(id),
+        api.getSetting(`context_${id}`).catch(() => null),
       ]);
       const messages = rawMessages.map(toDisplayMessage);
+
+      // Restore context usage
+      let contextUsage = { used: 0, total: 0, percent: 0 };
+      if (contextStr) {
+        try { contextUsage = JSON.parse(contextStr); } catch { /* ignore */ }
+      }
 
       // Compute total cost from session data
       const { sessions } = get();
@@ -230,9 +251,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         messages,
         checkpoints,
+        contextUsage,
         totalCost: session?.total_cost ?? 0,
         model: session?.model ?? 'sonnet',
       });
+
+      // Check if there's an active Claude process for this session
+      try {
+        const streaming = await api.isSessionStreaming(id);
+        if (streaming) {
+          // Get accumulated blocks from the buffer
+          const buffer = await api.getStreamingBuffer(id);
+          // Parse buffer into DisplayBlocks
+          const blocks: DisplayBlock[] = buffer.flatMap((contentArray: any) => {
+            if (!Array.isArray(contentArray)) return [];
+            return contentArray.map((block: any): DisplayBlock => {
+              if (block.type === 'thinking') {
+                return {
+                  type: 'thinking',
+                  content: block.thinking ?? block.content ?? '',
+                  chars: (block.thinking ?? block.content ?? '').length,
+                };
+              }
+              if (block.type === 'tool_use') {
+                const input = block.input ?? {};
+                return {
+                  type: 'tool_use',
+                  tool: block.name ?? 'unknown',
+                  path: input.file_path ?? input.path ?? input.filePath,
+                  command: input.command,
+                };
+              }
+              if (block.type === 'text') {
+                return { type: 'text', content: block.text ?? block.content ?? '' };
+              }
+              return { type: 'text', content: JSON.stringify(block) };
+            });
+          });
+          set({ isStreaming: true, streamingBlocks: blocks });
+        }
+      } catch {
+        /* ignore */
+      }
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
@@ -437,6 +497,11 @@ export const useAppStore = create<AppState>((set, get) => ({
               (m.cacheReadInputTokens ?? 0);
             const percent = total > 0 ? Math.round((used / total) * 100) : 0;
             set({ contextUsage: { used, total, percent } });
+            // Persist to DB for session restore
+            const { activeSessionId: sid } = get();
+            if (sid) {
+              api.setSetting(`context_${sid}`, JSON.stringify({ used, total, percent })).catch(() => {});
+            }
           }
         }
 

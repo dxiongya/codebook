@@ -26,12 +26,15 @@ pub struct ClaudeEvent {
 pub struct ClaudeManager {
     /// Map of internal session id -> child process handle
     processes: Arc<Mutex<HashMap<String, Child>>>,
+    /// Accumulated streaming blocks per session (for when user switches away and back)
+    buffers: Arc<Mutex<HashMap<String, Vec<serde_json::Value>>>>,
 }
 
 impl ClaudeManager {
     pub fn new() -> Self {
         Self {
             processes: Arc::new(Mutex::new(HashMap::new())),
+            buffers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -95,7 +98,14 @@ impl ClaudeManager {
             procs.insert(session_id.clone(), child);
         }
 
+        // Initialize the buffer for this session
+        {
+            let mut bufs = self.buffers.lock().await;
+            bufs.insert(session_id.clone(), Vec::new());
+        }
+
         let processes = self.processes.clone();
+        let buffers = self.buffers.clone();
         let sid = session_id.clone();
 
         // Spawn a background task that reads stdout line-by-line
@@ -141,6 +151,14 @@ impl ClaudeManager {
                             .cloned()
                             .unwrap_or(serde_json::Value::Array(vec![]));
 
+                        // Store content in the per-session buffer
+                        {
+                            let mut bufs = buffers.lock().await;
+                            if let Some(buf) = bufs.get_mut(&sid) {
+                                buf.push(content.clone());
+                            }
+                        }
+
                         let mut data = serde_json::Map::new();
                         data.insert("content".to_string(), content);
                         // Forward the full message for any extra fields
@@ -154,11 +172,18 @@ impl ClaudeManager {
                             data: serde_json::Value::Object(data),
                         })
                     }
-                    Some("result") => Some(ClaudeEvent {
-                        session_id: sid.clone(),
-                        event_type: "result".to_string(),
-                        data: parsed.clone(),
-                    }),
+                    Some("result") => {
+                        // Clear the buffer for this session (streaming is done)
+                        {
+                            let mut bufs = buffers.lock().await;
+                            bufs.remove(&sid);
+                        }
+                        Some(ClaudeEvent {
+                            session_id: sid.clone(),
+                            event_type: "result".to_string(),
+                            data: parsed.clone(),
+                        })
+                    }
                     Some("content_block_delta") | Some("content_block_start") | Some("content_block_stop") => {
                         Some(ClaudeEvent {
                             session_id: sid.clone(),
@@ -186,8 +211,19 @@ impl ClaudeManager {
             }
 
             // Process finished – clean up
+            {
+                let mut bufs = buffers.lock().await;
+                bufs.remove(&sid);
+            }
             let mut procs = processes.lock().await;
             procs.remove(&sid);
+
+            // Emit a process-done event so the frontend knows streaming ended
+            let _ = app.emit("claude-event", &ClaudeEvent {
+                session_id: sid.clone(),
+                event_type: "process_done".to_string(),
+                data: serde_json::Value::Null,
+            });
         });
 
         Ok(())
@@ -205,6 +241,24 @@ impl ClaudeManager {
         } else {
             Err("No running process for this session".to_string())
         }
+    }
+
+    /// Get the accumulated streaming buffer for a session.
+    pub async fn get_buffer(&self, session_id: &str) -> Vec<serde_json::Value> {
+        let bufs = self.buffers.lock().await;
+        bufs.get(session_id).cloned().unwrap_or_default()
+    }
+
+    /// Check if a Claude process is currently running for the given session.
+    pub async fn is_running(&self, session_id: &str) -> bool {
+        let procs = self.processes.lock().await;
+        procs.contains_key(session_id)
+    }
+
+    /// Clear the streaming buffer for a session.
+    pub async fn clear_buffer(&self, session_id: &str) {
+        let mut bufs = self.buffers.lock().await;
+        bufs.remove(session_id);
     }
 
     /// Kill all running Claude processes (called on app exit).
