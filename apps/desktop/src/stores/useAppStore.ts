@@ -97,6 +97,15 @@ interface AppState {
   // checkpoints
   checkpoints: Checkpoint[];
 
+  // claude init data (from system_init event)
+  claudeInitData: {
+    tools: string[];
+    mcp_servers: { name: string; status: string }[];
+    plugins: { name: string; path: string }[];
+    model: string;
+    claude_code_version: string;
+  } | null;
+
   // UI layout (preserved from original)
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -151,6 +160,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // checkpoints
   checkpoints: [],
+
+  // claude init data
+  claudeInitData: null,
 
   // UI
   leftPanelWidth: 260,
@@ -442,9 +454,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     const data = evt.data ?? {};
 
     switch (eventType) {
-      case 'system_init':
-        // Store claude_session_id from data.session_id if needed
+      case 'system_init': {
+        // Store claude_session_id and extract init data for settings display
+        const initData: AppState['claudeInitData'] = {
+          tools: Array.isArray(data.tools) ? data.tools.map((t: any) => typeof t === 'string' ? t : (t.name ?? String(t))) : [],
+          mcp_servers: Array.isArray(data.mcp_servers)
+            ? data.mcp_servers.map((s: any) => ({ name: s.name ?? 'unknown', status: s.status ?? 'unknown' }))
+            : [],
+          plugins: Array.isArray(data.plugins)
+            ? data.plugins.map((p: any) => ({ name: p.name ?? 'unknown', path: p.path ?? '' }))
+            : [],
+          model: data.model ?? '',
+          claude_code_version: data.version ?? data.claude_code_version ?? '',
+        };
+        set({ claudeInitData: initData });
         break;
+      }
 
       case 'assistant': {
         // data.content is an array of Claude content blocks

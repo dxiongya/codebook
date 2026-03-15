@@ -285,7 +285,12 @@ export function LeftPanel() {
         </div>
         <div className="flex items-center justify-between">
           <span style={{ color: '#6B7280', fontSize: 11 }}>$ daxiongya</span>
-          <span style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}>[⚙]</span>
+          <span
+            onClick={() => useAppStore.getState().setSettingsOpen(true)}
+            style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+          >[⚙]</span>
         </div>
       </div>
     </div>

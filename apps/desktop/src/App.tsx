@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { LeftPanel } from './components/layout/LeftPanel';
 import { CenterPanel } from './components/layout/CenterPanel';
 import { RightPanel } from './components/layout/RightPanel';
+import { SettingsPanel } from './components/settings/SettingsPanel';
 import { useAppStore } from './stores/useAppStore';
 
 type DragTarget = 'left' | 'right' | null;
@@ -10,6 +11,7 @@ export default function App() {
   const {
     leftPanelWidth,
     rightPanelWidth,
+    settingsOpen,
     setLeftPanelWidth,
     setRightPanelWidth,
   } = useAppStore();
@@ -68,6 +70,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-primary)]">
+      {settingsOpen && <SettingsPanel />}
       {/* left panel */}
       <div
         className="shrink-0 h-full overflow-hidden"

@@ -98,3 +98,13 @@ export const isSessionStreaming = (sessionId: string) =>
 
 export const getStreamingBuffer = (sessionId: string) =>
   invoke<any[]>('get_streaming_buffer', { sessionId });
+
+// Remote access
+export const getRemoteInfo = () =>
+  invoke<{ port: number; ips: string[]; client_count: number; running: boolean }>('get_remote_info');
+
+export const startRemoteServer = () =>
+  invoke<void>('start_remote_server');
+
+export const stopRemoteServer = () =>
+  invoke<void>('stop_remote_server');
