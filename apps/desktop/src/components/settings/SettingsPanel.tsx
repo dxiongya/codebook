@@ -388,6 +388,55 @@ function ClaudeCodeSection() {
       ) : (
         <div style={{ color: '#4B5563', fontSize: 12 }}>no tools data yet -- send a message first</div>
       )}
+
+      <SectionHeader>skills</SectionHeader>
+      {claudeInitData?.skills && claudeInitData.skills.length > 0 ? (
+        <div className="flex flex-wrap" style={{ gap: 6, maxWidth: 500 }}>
+          {claudeInitData.skills.map((skill) => (
+            <span
+              key={skill}
+              style={{
+                padding: '4px 10px',
+                border: '1px solid #2a4030',
+                color: '#10B981',
+                fontSize: 11,
+                background: '#0a1a0f',
+              }}
+            >
+              {skill}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: '#4B5563', fontSize: 12 }}>no skills data yet</div>
+      )}
+
+      <SectionHeader>agents</SectionHeader>
+      {claudeInitData?.agents && claudeInitData.agents.length > 0 ? (
+        <div className="flex flex-wrap" style={{ gap: 6, maxWidth: 500 }}>
+          {claudeInitData.agents.map((agent) => (
+            <span
+              key={agent}
+              style={{
+                padding: '4px 10px',
+                border: '1px solid #2a2a50',
+                color: '#a78bfa',
+                fontSize: 11,
+                background: '#0f0a1a',
+              }}
+            >
+              {agent}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: '#4B5563', fontSize: 12 }}>no agents data yet</div>
+      )}
+
+      <SectionHeader>permission mode</SectionHeader>
+      <div style={{ color: '#F59E0B', fontSize: 12 }}>
+        {claudeInitData?.permissionMode ?? 'unknown'}
+      </div>
     </div>
   );
 }

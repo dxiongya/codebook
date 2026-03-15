@@ -102,8 +102,11 @@ interface AppState {
     tools: string[];
     mcp_servers: { name: string; status: string }[];
     plugins: { name: string; path: string }[];
+    skills: string[];
+    agents: string[];
     model: string;
     claude_code_version: string;
+    permissionMode: string;
   } | null;
 
   // UI layout (preserved from original)
@@ -464,8 +467,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           plugins: Array.isArray(data.plugins)
             ? data.plugins.map((p: any) => ({ name: p.name ?? 'unknown', path: p.path ?? '' }))
             : [],
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          agents: Array.isArray(data.agents) ? data.agents : [],
           model: data.model ?? '',
-          claude_code_version: data.version ?? data.claude_code_version ?? '',
+          claude_code_version: data.claude_code_version ?? '',
+          permissionMode: data.permissionMode ?? '',
         };
         set({ claudeInitData: initData });
         break;
