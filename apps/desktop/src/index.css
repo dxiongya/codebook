@@ -112,6 +112,11 @@ select {
   outline: none;
 }
 
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* Hide original line numbers in inline diff mode (first margin column) */
 .inline-diff-wrapper .original-in-foreign { display: none !important; }
 .inline-diff-wrapper .view-overlays .original-in-foreign { display: none !important; }

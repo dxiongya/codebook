@@ -219,11 +219,22 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
       await api.rollbackToCheckpoint(cp.project_path, cp.git_commit_hash);
       setRollbackState('done');
       setRollbackMsg(`rolled back to ${cp.git_commit_hash.slice(0, 7)}`);
+
+      // Save a system note to DB so Claude sees it as context in the next --resume
+      const { activeSessionId } = useAppStore.getState();
+      if (activeSessionId) {
+        const note = `[system: code rolled back to ${cp.git_commit_hash.slice(0, 7)}. files reverted. re-read before editing.]`;
+        const saved = await api.saveMessage(activeSessionId, 'user', note);
+        // Add to local messages display
+        useAppStore.setState((s) => ({
+          messages: [...s.messages, { ...saved, blocks: [], role: 'user' as const }],
+        }));
+      }
     } catch (err: any) {
       setRollbackState('error');
       setRollbackMsg(err?.toString() ?? 'rollback failed');
     }
-    setTimeout(() => { setRollbackState('idle'); setRollbackMsg(''); }, 3000);
+    setTimeout(() => { setRollbackState('idle'); setRollbackMsg(''); }, 4000);
   };
 
   const cancelRollback = () => {

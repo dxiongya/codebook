@@ -490,11 +490,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           if (models.length > 0) {
             const m = models[0];
             const total = m.contextWindow ?? 0;
-            const used =
-              (m.inputTokens ?? 0) +
-              (m.outputTokens ?? 0) +
-              (m.cacheCreationInputTokens ?? 0) +
-              (m.cacheReadInputTokens ?? 0);
+            const used = (m.inputTokens ?? 0) + (m.outputTokens ?? 0);
             const percent = total > 0 ? Math.round((used / total) * 100) : 0;
             set({ contextUsage: { used, total, percent } });
             // Persist to DB for session restore

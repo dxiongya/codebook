@@ -15,6 +15,7 @@ export function LeftPanel() {
     addReference,
     removeReference,
     deleteSession,
+    isStreaming,
   } = useAppStore();
 
   const handleAddProject = async () => {
@@ -98,11 +99,25 @@ export function LeftPanel() {
             <div key={project.id}>
               {/* project row — design: padding [8,16], gap 6 */}
               <button
-                onClick={() => selectProject(project.id)}
+                onClick={() => {
+                  if (isExpanded) {
+                    // Collapse: deselect project
+                    useAppStore.setState({
+                      activeProjectId: null,
+                      activeSessionId: null,
+                      sessions: [],
+                      references: [],
+                      messages: [],
+                      checkpoints: [],
+                    });
+                  } else {
+                    selectProject(project.id);
+                  }
+                }}
                 className="w-full text-left flex items-center"
                 style={{
-                  padding: '7px 16px',
-                  gap: 6,
+                  padding: '8px 16px',
+                  gap: 8,
                   background: 'transparent',
                   border: 'none',
                   borderLeft: isExpanded ? '2px solid #10B981' : '2px solid transparent',
@@ -110,15 +125,12 @@ export function LeftPanel() {
                   fontFamily: 'inherit',
                 }}
               >
-                <span style={{ color: isExpanded ? '#10B981' : '#6B7280', fontSize: 10 }}>
+                <span style={{ color: isExpanded ? '#10B981' : '#6B7280', fontSize: 13 }}>
                   {isExpanded ? '▾' : '▸'}
                 </span>
-                <span style={{ color: '#FAFAFA', fontSize: 13 }}>{project.name}/</span>
-                {isExpanded && activeSessionId && (
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0 }} />
-                )}
+                <span style={{ color: '#FAFAFA', fontSize: 14 }}>{project.name}/</span>
                 {!isExpanded && (
-                  <span style={{ marginLeft: 'auto', color: '#4B5563', fontSize: 10 }}>
+                  <span style={{ marginLeft: 'auto', color: '#4B5563', fontSize: 11 }}>
                     [{sessions.length}]
                   </span>
                 )}
@@ -146,8 +158,9 @@ export function LeftPanel() {
                         >
                           <span style={{
                             width: 6, height: 6, borderRadius: '50%',
-                            background: isActive ? '#10B981' : '#4B5563',
+                            background: isActive && isStreaming ? '#F59E0B' : isActive ? '#10B981' : '#4B5563',
                             flexShrink: 0,
+                            animation: isActive && isStreaming ? 'pulse 1.5s ease-in-out infinite' : 'none',
                           }} />
                           <span style={{
                             color: isActive ? '#10B981' : '#9CA3AF',
