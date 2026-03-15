@@ -7,6 +7,7 @@ import type {
   ReferenceDir,
   ClaudeEvent,
   DisplayBlock,
+  Checkpoint,
 } from '../types';
 import * as api from '../lib/api';
 
@@ -90,6 +91,12 @@ interface AppState {
   totalCost: number;
   model: string;
 
+  // context window usage
+  contextUsage: { used: number; total: number; percent: number };
+
+  // checkpoints
+  checkpoints: Checkpoint[];
+
   // UI layout (preserved from original)
   leftPanelWidth: number;
   rightPanelWidth: number;
@@ -138,6 +145,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   // meta
   totalCost: 0,
   model: 'sonnet',
+
+  // context window usage
+  contextUsage: { used: 0, total: 0, percent: 0 },
+
+  // checkpoints
+  checkpoints: [],
 
   // UI
   leftPanelWidth: 260,
@@ -202,9 +215,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       messages: [],
       streamingBlocks: [],
       isStreaming: false,
+      checkpoints: [],
     });
     try {
-      const rawMessages = await api.getMessages(id);
+      const [rawMessages, checkpoints] = await Promise.all([
+        api.getMessages(id),
+        api.getCheckpoints(id),
+      ]);
       const messages = rawMessages.map(toDisplayMessage);
 
       // Compute total cost from session data
@@ -212,6 +229,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const session = sessions.find((s) => s.id === id);
       set({
         messages,
+        checkpoints,
         totalCost: session?.total_cost ?? 0,
         model: session?.model ?? 'sonnet',
       });
@@ -307,7 +325,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { activeSessionId, model } = get();
+    const { activeSessionId, activeProjectId, model, projects } = get();
     if (!activeSessionId || !content.trim()) return;
     try {
       // Save user message to DB
@@ -318,6 +336,24 @@ export const useAppStore = create<AppState>((set, get) => ({
         isStreaming: true,
         streamingBlocks: [],
       }));
+
+      // Create checkpoint before sending to Claude
+      const project = projects.find((p) => p.id === activeProjectId);
+      if (project) {
+        try {
+          const snapshot = await api.getGitSnapshot(project.path);
+          const checkpoint = await api.saveCheckpoint(
+            activeSessionId,
+            saved.id,
+            snapshot.commit_hash || null,
+            snapshot.diff_summary || null,
+            project.path,
+          );
+          set((s) => ({ checkpoints: [...s.checkpoints, checkpoint] }));
+        } catch (cpErr) {
+          console.error('Failed to create checkpoint:', cpErr);
+        }
+      }
 
       // Send to Claude
       await api.sendChatMessage(activeSessionId, content, model);
@@ -384,9 +420,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       case 'result': {
-        // data has total_cost_usd, duration_ms, result, etc.
+        // data has total_cost_usd, duration_ms, result, modelUsage, etc.
         const cost = data.total_cost_usd ?? 0;
         const duration = data.duration_ms ?? 0;
+
+        // Extract context window usage from modelUsage
+        if (data.modelUsage && typeof data.modelUsage === 'object') {
+          const models = Object.values(data.modelUsage) as any[];
+          if (models.length > 0) {
+            const m = models[0];
+            const total = m.contextWindow ?? 0;
+            const used =
+              (m.inputTokens ?? 0) +
+              (m.outputTokens ?? 0) +
+              (m.cacheCreationInputTokens ?? 0) +
+              (m.cacheReadInputTokens ?? 0);
+            const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+            set({ contextUsage: { used, total, percent } });
+          }
+        }
 
         const { streamingBlocks, activeSessionId } = get();
         if (activeSessionId && streamingBlocks.length > 0) {

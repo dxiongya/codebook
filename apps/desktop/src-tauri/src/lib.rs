@@ -4,7 +4,7 @@ mod git;
 mod remote;
 
 use claude::ClaudeManager;
-use db::{Database, Message, Project, ReferenceDir, Session};
+use db::{Checkpoint, Database, Message, Project, ReferenceDir, Session};
 use remote::{RemoteInfo, RemoteServer};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
@@ -134,6 +134,100 @@ fn get_setting(db: State<DbState>, key: String) -> Result<Option<String>, String
 #[tauri::command]
 fn set_setting(db: State<DbState>, key: String, value: String) -> Result<(), String> {
     db.0.set_setting(&key, &value).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Tauri commands – Checkpoints
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn save_checkpoint(
+    db: State<DbState>,
+    session_id: String,
+    message_id: String,
+    git_commit_hash: Option<String>,
+    git_diff_summary: Option<String>,
+    project_path: String,
+) -> Result<Checkpoint, String> {
+    db.0.save_checkpoint(
+        &session_id,
+        &message_id,
+        git_commit_hash.as_deref(),
+        git_diff_summary.as_deref(),
+        &project_path,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_checkpoints(db: State<DbState>, session_id: String) -> Result<Vec<Checkpoint>, String> {
+    db.0.get_checkpoints(&session_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn rollback_to_checkpoint(project_path: String, commit_hash: String) -> Result<(), String> {
+    // First stash any uncommitted changes
+    let stash_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "stash"])
+        .output()
+        .map_err(|e| format!("Failed to run git stash: {}", e))?;
+
+    if !stash_output.status.success() {
+        let stderr = String::from_utf8_lossy(&stash_output.stderr);
+        return Err(format!("git stash failed: {}", stderr));
+    }
+
+    // Then checkout the target commit
+    let checkout_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "checkout", &commit_hash])
+        .output()
+        .map_err(|e| format!("Failed to run git checkout: {}", e))?;
+
+    if !checkout_output.status.success() {
+        let stderr = String::from_utf8_lossy(&checkout_output.stderr);
+        return Err(format!("git checkout failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct GitSnapshot {
+    commit_hash: String,
+    diff_summary: String,
+}
+
+#[tauri::command]
+fn get_git_snapshot(project_path: String) -> Result<GitSnapshot, String> {
+    // Get current commit hash
+    let hash_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "rev-parse", "HEAD"])
+        .output()
+        .map_err(|e| format!("Failed to run git rev-parse: {}", e))?;
+
+    let commit_hash = if hash_output.status.success() {
+        String::from_utf8_lossy(&hash_output.stdout).trim().to_string()
+    } else {
+        String::new()
+    };
+
+    // Get diff summary
+    let diff_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "diff", "--stat"])
+        .output()
+        .map_err(|e| format!("Failed to run git diff: {}", e))?;
+
+    let diff_summary = if diff_output.status.success() {
+        String::from_utf8_lossy(&diff_output.stdout).trim().to_string()
+    } else {
+        String::new()
+    };
+
+    Ok(GitSnapshot {
+        commit_hash,
+        diff_summary,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -457,6 +551,11 @@ pub fn run() {
             // File explorer
             list_dir,
             read_file_content,
+            // Checkpoints
+            save_checkpoint,
+            get_checkpoints,
+            rollback_to_checkpoint,
+            get_git_snapshot,
             // Git
             git_status,
             git_diff_file,

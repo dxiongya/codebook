@@ -117,6 +117,23 @@ export interface DisplayTextBlock {
 
 export type DisplayBlock = DisplayThinkingBlock | DisplayToolBlock | DisplayTextBlock;
 
+// Checkpoint types
+
+export interface Checkpoint {
+  id: string;
+  session_id: string;
+  message_id: string;
+  git_commit_hash: string | null;
+  git_diff_summary: string | null;
+  project_path: string;
+  created_at: string;
+}
+
+export interface GitSnapshot {
+  commit_hash: string;
+  diff_summary: string;
+}
+
 // File explorer types
 
 export interface FileEntry {

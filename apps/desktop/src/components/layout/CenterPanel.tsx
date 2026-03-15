@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore, type DisplayMessage } from '../../stores/useAppStore';
-import type { DisplayBlock, DisplayThinkingBlock, DisplayToolBlock, DisplayTextBlock } from '../../types';
+import type { DisplayBlock, DisplayThinkingBlock, DisplayToolBlock, DisplayTextBlock, Checkpoint } from '../../types';
+import * as api from '../../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -187,7 +188,48 @@ function BlockRenderer({ block }: { block: DisplayBlock }) {
   }
 }
 
-function MessageView({ msg }: { msg: DisplayMessage }) {
+function ContextProgressBar({ percent }: { percent: number }) {
+  const barColor = percent > 80 ? '#EF4444' : percent > 60 ? '#F59E0B' : '#10B981';
+  return (
+    <div className="flex items-center" style={{ gap: 6 }}>
+      <div style={{ width: 80, height: 6, background: '#1F1F1F', borderRadius: 3, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 3, transition: 'width 0.3s' }} />
+      </div>
+      <span style={{ color: barColor, fontSize: 10, whiteSpace: 'nowrap' }}>
+        {percent}%{percent > 80 ? ' context filling up' : ''}
+      </span>
+    </div>
+  );
+}
+
+function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Checkpoint }) {
+  const [rollbackState, setRollbackState] = useState<'idle' | 'confirm' | 'loading' | 'done' | 'error'>('idle');
+  const [rollbackMsg, setRollbackMsg] = useState('');
+
+  const handleRollback = async (_cp: Checkpoint) => {
+    if (rollbackState === 'idle') {
+      setRollbackState('confirm');
+    }
+  };
+
+  const confirmRollback = async (cp: Checkpoint) => {
+    if (!cp.git_commit_hash) return;
+    setRollbackState('loading');
+    try {
+      await api.rollbackToCheckpoint(cp.project_path, cp.git_commit_hash);
+      setRollbackState('done');
+      setRollbackMsg(`rolled back to ${cp.git_commit_hash.slice(0, 7)}`);
+    } catch (err: any) {
+      setRollbackState('error');
+      setRollbackMsg(err?.toString() ?? 'rollback failed');
+    }
+    setTimeout(() => { setRollbackState('idle'); setRollbackMsg(''); }, 3000);
+  };
+
+  const cancelRollback = () => {
+    setRollbackState('idle');
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -200,6 +242,30 @@ function MessageView({ msg }: { msg: DisplayMessage }) {
         <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
           <span style={{ color: '#06B6D4', fontSize: 12, fontWeight: 700 }}>{'>'} you</span>
           <span style={{ color: '#4B5563', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
+          {checkpoint && checkpoint.git_commit_hash && (
+            <span style={{ marginLeft: 'auto' }}>
+              {rollbackState === 'confirm' ? (
+                <span style={{ color: '#6B7280', fontSize: 10 }}>
+                  rollback?{' '}
+                  <span onClick={() => confirmRollback(checkpoint)} style={{ color: '#10B981', cursor: 'pointer' }}>[yes]</span>
+                  {' '}
+                  <span onClick={cancelRollback} style={{ color: '#EF4444', cursor: 'pointer' }}>[no]</span>
+                </span>
+              ) : rollbackState === 'loading' ? (
+                <span style={{ color: '#F59E0B', fontSize: 10 }}>rolling back...</span>
+              ) : rollbackState === 'done' || rollbackState === 'error' ? (
+                <span style={{ color: rollbackState === 'done' ? '#10B981' : '#EF4444', fontSize: 10 }}>{rollbackMsg}</span>
+              ) : (
+                <span
+                  onClick={() => handleRollback(checkpoint)}
+                  style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                  title={`Checkpoint: ${checkpoint.git_commit_hash}`}
+                >
+                  &#x2691; {checkpoint.git_commit_hash.slice(0, 7)}
+                </span>
+              )}
+            </span>
+          )}
         </div>
         {/* user content — design: padding [12,16], border rgba blue */}
         <div style={{ padding: '12px 16px', border: '1px solid rgba(96,165,250,0.15)' }}>
@@ -253,6 +319,8 @@ export function CenterPanel() {
     sessions,
     model,
     totalCost,
+    contextUsage,
+    checkpoints,
     sendMessage,
     stopStreaming,
     setModel,
@@ -392,6 +460,7 @@ export function CenterPanel() {
             <span style={{ color: '#FAFAFA', fontSize: 11 }}>claude-{model}</span>
           </div>
           <span style={{ color: '#6B7280', fontSize: 11 }}>${totalCost.toFixed(4)}</span>
+          {contextUsage.total > 0 && <ContextProgressBar percent={contextUsage.percent} />}
         </div>
       </div>
 
@@ -399,7 +468,11 @@ export function CenterPanel() {
       <div className="flex-1 overflow-y-auto" style={{ padding: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {messages.map((msg) => (
-            <MessageView key={msg.id} msg={msg} />
+            <MessageView
+              key={msg.id}
+              msg={msg}
+              checkpoint={checkpoints.find((cp) => cp.message_id === msg.id)}
+            />
           ))}
 
           {/* streaming blocks */}

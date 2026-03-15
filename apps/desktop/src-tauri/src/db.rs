@@ -7,6 +7,17 @@ use std::sync::Mutex;
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Checkpoint {
+    pub id: String,
+    pub session_id: String,
+    pub message_id: String,
+    pub git_commit_hash: Option<String>,
+    pub git_diff_summary: Option<String>,
+    pub project_path: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -117,6 +128,16 @@ impl Database {
             CREATE TABLE IF NOT EXISTS settings (
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS checkpoints (
+                id              TEXT PRIMARY KEY,
+                session_id      TEXT NOT NULL,
+                message_id      TEXT NOT NULL,
+                git_commit_hash TEXT,
+                git_diff_summary TEXT,
+                project_path    TEXT NOT NULL,
+                created_at      TEXT NOT NULL
             );
             ",
         )?;
@@ -367,5 +388,54 @@ impl Database {
             params![key, value],
         )?;
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Checkpoints
+    // -----------------------------------------------------------------------
+
+    pub fn save_checkpoint(
+        &self,
+        session_id: &str,
+        message_id: &str,
+        git_commit_hash: Option<&str>,
+        git_diff_summary: Option<&str>,
+        project_path: &str,
+    ) -> SqlResult<Checkpoint> {
+        let now = chrono::Utc::now().to_rfc3339();
+        let id = uuid::Uuid::new_v4().to_string();
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO checkpoints (id, session_id, message_id, git_commit_hash, git_diff_summary, project_path, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![id, session_id, message_id, git_commit_hash, git_diff_summary, project_path, now],
+        )?;
+        Ok(Checkpoint {
+            id,
+            session_id: session_id.to_string(),
+            message_id: message_id.to_string(),
+            git_commit_hash: git_commit_hash.map(String::from),
+            git_diff_summary: git_diff_summary.map(String::from),
+            project_path: project_path.to_string(),
+            created_at: now,
+        })
+    }
+
+    pub fn get_checkpoints(&self, session_id: &str) -> SqlResult<Vec<Checkpoint>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, message_id, git_commit_hash, git_diff_summary, project_path, created_at FROM checkpoints WHERE session_id = ?1 ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map(params![session_id], |row| {
+            Ok(Checkpoint {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                message_id: row.get(2)?,
+                git_commit_hash: row.get(3)?,
+                git_diff_summary: row.get(4)?,
+                project_path: row.get(5)?,
+                created_at: row.get(6)?,
+            })
+        })?;
+        rows.collect()
     }
 }

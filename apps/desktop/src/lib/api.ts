@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { Project, Session, Message, ReferenceDir, FileChange, DiffResult, GitCommitResult, FileEntry, FileContent } from '../types';
+import type { Project, Session, Message, ReferenceDir, FileChange, DiffResult, GitCommitResult, FileEntry, FileContent, Checkpoint, GitSnapshot } from '../types';
 
 // Projects
 export const createProject = (name: string, path: string) =>
@@ -74,3 +74,16 @@ export const gitPush = (projectPath: string) =>
 
 export const gitBranch = (projectPath: string) =>
   invoke<string>('git_branch', { projectPath });
+
+// Checkpoints
+export const saveCheckpoint = (sessionId: string, messageId: string, gitCommitHash: string | null, gitDiffSummary: string | null, projectPath: string) =>
+  invoke<Checkpoint>('save_checkpoint', { sessionId, messageId, gitCommitHash, gitDiffSummary, projectPath });
+
+export const getCheckpoints = (sessionId: string) =>
+  invoke<Checkpoint[]>('get_checkpoints', { sessionId });
+
+export const rollbackToCheckpoint = (projectPath: string, commitHash: string) =>
+  invoke<void>('rollback_to_checkpoint', { projectPath, commitHash });
+
+export const getGitSnapshot = (projectPath: string) =>
+  invoke<GitSnapshot>('get_git_snapshot', { projectPath });
