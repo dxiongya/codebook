@@ -55,28 +55,27 @@ export function LeftPanel() {
       className="flex flex-col h-full"
       style={{ background: '#0A0A0A', borderRight: '1px solid #2a2a2a' }}
     >
-      {/* logo — design: padding [16,20], gap 8, height 58px */}
+      {/* logo */}
       <div
         className="flex items-center shrink-0"
         style={{ padding: '16px 20px', gap: 8, borderBottom: '1px solid #2a2a2a' }}
       >
         <span style={{ color: '#10B981', fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{'>'}</span>
         <span style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 500, lineHeight: 1.3 }}>codebook</span>
-        <span style={{ color: '#6B7280', fontSize: 10, lineHeight: 1 }}>v0.1</span>
+        <span style={{ color: '#6B7280', fontSize: 11, lineHeight: 1 }}>v0.1</span>
       </div>
 
-      {/* search — design: padding [8,16], gap 8, height 33px */}
+      {/* search */}
       <div
         className="flex items-center shrink-0"
         style={{ padding: '8px 16px', gap: 8, height: 33 }}
       >
-        <span style={{ color: '#6B7280', fontSize: 13 }}>/</span>
-        <span style={{ color: '#4B5563', fontSize: 12 }}>search projects...</span>
+        <span style={{ color: '#6B7280', fontSize: 14 }}>/</span>
+        <span style={{ color: '#4B5563', fontSize: 13 }}>search projects...</span>
       </div>
 
-      {/* projects list — design: padding [8,0], flex-1 */}
+      {/* projects list */}
       <div className="flex-1 overflow-y-auto" style={{ padding: '8px 0' }}>
-        {/* section header — design: padding [6,16], space_between */}
         <div
           className="flex items-center justify-between"
           style={{ padding: '6px 16px' }}
@@ -84,7 +83,7 @@ export function LeftPanel() {
           <span style={{ color: '#6B7280', fontSize: 12 }}>// projects</span>
           <span
             onClick={handleAddProject}
-            style={{ color: '#10B981', fontSize: 12, cursor: 'pointer' }}
+            style={{ color: '#10B981', fontSize: 13, cursor: 'pointer' }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
           >
@@ -97,11 +96,9 @@ export function LeftPanel() {
 
           return (
             <div key={project.id}>
-              {/* project row — design: padding [8,16], gap 6 */}
               <button
                 onClick={() => {
                   if (isExpanded) {
-                    // Collapse: deselect project
                     useAppStore.setState({
                       activeProjectId: null,
                       activeSessionId: null,
@@ -125,21 +122,34 @@ export function LeftPanel() {
                   fontFamily: 'inherit',
                 }}
               >
-                <span style={{ color: isExpanded ? '#10B981' : '#6B7280', fontSize: 13 }}>
+                <span style={{ color: isExpanded ? '#10B981' : '#6B7280', fontSize: 14 }}>
                   {isExpanded ? '▾' : '▸'}
                 </span>
-                <span style={{ color: '#FAFAFA', fontSize: 14 }}>{project.name}/</span>
+                <span style={{ color: '#FAFAFA', fontSize: 14, flex: 1 }}>{project.name}/</span>
+                {isExpanded && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      useAppStore.getState().setRightPanelTab('config');
+                    }}
+                    style={{ color: '#4B5563', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
+                    title="project config"
+                  >
+                    ⚙
+                  </span>
+                )}
                 {!isExpanded && (
-                  <span style={{ marginLeft: 'auto', color: '#4B5563', fontSize: 11 }}>
+                  <span style={{ color: '#4B5563', fontSize: 12 }}>
                     [{sessions.length}]
                   </span>
                 )}
               </button>
 
-              {/* expanded content */}
               {isExpanded && (
                 <div style={{ paddingBottom: 4 }}>
-                  {/* sessions — indented list */}
+                  {/* sessions */}
                   <div style={{ padding: '4px 0 0 20px' }}>
                     {sessions.map((session) => {
                       const isActive = activeSessionId === session.id;
@@ -168,7 +178,7 @@ export function LeftPanel() {
                           }}>
                             {session.name}
                           </span>
-                          <span style={{ color: '#4B5563', fontSize: 11 }}>
+                          <span style={{ color: '#4B5563', fontSize: 12 }}>
                             {formatTime(session.updated_at)}
                           </span>
                           <span
@@ -190,13 +200,13 @@ export function LeftPanel() {
                       );
                     })}
                     {sessions.length === 0 && (
-                      <div style={{ padding: '7px 10px', color: '#4B5563', fontSize: 12 }}>
+                      <div style={{ padding: '7px 10px', color: '#4B5563', fontSize: 13 }}>
                         no sessions yet
                       </div>
                     )}
                   </div>
 
-                  {/* new session button */}
+                  {/* new session */}
                   <div
                     onClick={handleNewSession}
                     className="flex items-center"
@@ -207,8 +217,8 @@ export function LeftPanel() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = '#1a1a1a')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <span style={{ color: '#10B981', fontSize: 13 }}>+</span>
-                    <span style={{ color: '#6B7280', fontSize: 12 }}>new session</span>
+                    <span style={{ color: '#10B981', fontSize: 14 }}>+</span>
+                    <span style={{ color: '#6B7280', fontSize: 13 }}>new session</span>
                   </div>
 
                   {/* references */}
@@ -217,10 +227,10 @@ export function LeftPanel() {
                       className="flex items-center justify-between"
                       style={{ padding: '6px 16px 4px 20px' }}
                     >
-                      <span style={{ color: '#4B5563', fontSize: 11 }}>// refs</span>
+                      <span style={{ color: '#4B5563', fontSize: 12 }}>// refs</span>
                       <span
                         onClick={handleAddReference}
-                        style={{ color: '#06B6D4', fontSize: 11, cursor: 'pointer' }}
+                        style={{ color: '#06B6D4', fontSize: 13, cursor: 'pointer' }}
                         onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
                         onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
                       >
@@ -239,13 +249,13 @@ export function LeftPanel() {
                           }}
                           style={{ padding: '5px 10px', gap: 6, cursor: 'grab' }}
                         >
-                          <span style={{ color: '#06B6D4', fontSize: 11 }}>→</span>
-                          <span style={{ color: '#06B6D4', fontSize: 12, flex: 1, opacity: 0.85 }}>
+                          <span style={{ color: '#06B6D4', fontSize: 13 }}>→</span>
+                          <span style={{ color: '#06B6D4', fontSize: 13, flex: 1, opacity: 0.85 }}>
                             {ref.label ?? ref.path.split('/').filter(Boolean).pop() ?? ref.path}/
                           </span>
                           <span
                             onClick={() => removeReference(ref.id)}
-                            style={{ color: '#4B5563', fontSize: 13, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
+                            style={{ color: '#4B5563', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
                             onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
                             title="remove reference"
@@ -255,26 +265,13 @@ export function LeftPanel() {
                         </div>
                       ))}
                       {references.length === 0 && (
-                        <div style={{ padding: '5px 10px', color: '#4B5563', fontSize: 11 }}>
+                        <div style={{ padding: '5px 10px', color: '#4B5563', fontSize: 12 }}>
                           no refs
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* config shortcut */}
-                  <div style={{ padding: '6px 0 0 0', borderTop: '1px solid #1a1a1a', marginTop: 4 }}>
-                    <div
-                      onClick={() => useAppStore.getState().setRightPanelTab('config')}
-                      className="flex items-center"
-                      style={{ padding: '5px 10px 5px 20px', gap: 6, cursor: 'pointer' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#1a1a1a')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <span style={{ color: '#6B7280', fontSize: 11 }}>⚙</span>
-                      <span style={{ color: '#6B7280', fontSize: 11 }}>config</span>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
@@ -282,26 +279,26 @@ export function LeftPanel() {
         })}
 
         {projects.length === 0 && (
-          <div style={{ padding: '12px 16px', color: '#4B5563', fontSize: 12 }}>
+          <div style={{ padding: '12px 16px', color: '#4B5563', fontSize: 13 }}>
             no projects — click [+] to add
           </div>
         )}
       </div>
 
-      {/* footer — design: padding [12,16], border-top, gap 8 between rows */}
+      {/* footer */}
       <div
         className="shrink-0"
         style={{ borderTop: '1px solid #2a2a2a', padding: '12px 16px' }}
       >
         <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0 }} />
-          <span style={{ color: '#10B981', fontSize: 11 }}>remote: connected</span>
+          <span style={{ color: '#10B981', fontSize: 12 }}>remote: connected</span>
         </div>
         <div className="flex items-center justify-between">
-          <span style={{ color: '#6B7280', fontSize: 11 }}>$ daxiongya</span>
+          <span style={{ color: '#6B7280', fontSize: 12 }}>$ daxiongya</span>
           <span
             onClick={() => useAppStore.getState().setSettingsOpen(true)}
-            style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}
+            style={{ color: '#6B7280', fontSize: 14, cursor: 'pointer' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
             onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
           >[⚙]</span>
