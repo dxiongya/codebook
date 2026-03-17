@@ -108,6 +108,7 @@ export interface DisplayToolBlock {
   command?: string;
   additions?: number;
   deletions?: number;
+  input?: Record<string, unknown>;
 }
 
 export interface DisplayTextBlock {

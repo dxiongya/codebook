@@ -62,6 +62,17 @@ fn delete_session(db: State<DbState>, id: String) -> Result<(), String> {
     db.0.delete_session(&id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn rename_session(db: State<DbState>, id: String, name: String) -> Result<(), String> {
+    let conn = db.0.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE sessions SET name = ?1, updated_at = ?2 WHERE id = ?3",
+        rusqlite::params![name, chrono::Utc::now().to_rfc3339(), id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Tauri commands – Messages
 // ---------------------------------------------------------------------------
@@ -499,7 +510,7 @@ async fn send_chat_message(
             })
             .collect();
         format!(
-            "[Reference projects are available via --add-dir. You can read their code with Read/Glob/Grep tools for patterns and implementation reference:]\n{}\n\n{}",
+            "[IMPORTANT: The following are READ-ONLY reference projects. You may read their code for patterns and inspiration, but NEVER write/edit files in these directories. All new code must be written in the current working directory ONLY.]\n\nReference projects:\n{}\n\n{}",
             ref_context.join("\n"),
             message
         )
@@ -695,6 +706,88 @@ async fn stop_remote_server(remote: State<'_, RemoteState>) -> Result<(), String
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – Open in terminal
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn open_in_terminal(path: String, terminal: Option<String>) -> Result<(), String> {
+    // Use user's preferred terminal, fall back to system default
+    let app = terminal.unwrap_or_else(|| {
+        // Try to detect default terminal: iTerm2 > Warp > Kitty > Alacritty > Terminal
+        let candidates = [
+            "/Applications/iTerm.app",
+            "/Applications/Warp.app",
+            "/Applications/kitty.app",
+            "/Applications/Alacritty.app",
+        ];
+        for c in &candidates {
+            if std::path::Path::new(c).exists() {
+                return c.to_string();
+            }
+        }
+        "Terminal".to_string()
+    });
+
+    std::process::Command::new("open")
+        .args(["-a", &app, &path])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Tauri commands – Paste image
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn save_pasted_image(base64_data: String, project_path: String) -> Result<String, String> {
+    let img_dir = std::path::Path::new(&project_path).join(".codebook-images");
+    std::fs::create_dir_all(&img_dir).map_err(|e| e.to_string())?;
+
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string();
+    let filename = format!("paste_{}.png", timestamp);
+    let file_path = img_dir.join(&filename);
+
+    // Decode base64
+    use std::io::Write;
+    let bytes = base64_decode(&base64_data).map_err(|e| format!("base64 decode error: {}", e))?;
+    let mut file = std::fs::File::create(&file_path).map_err(|e| e.to_string())?;
+    file.write_all(&bytes).map_err(|e| e.to_string())?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
+    // Simple base64 decoder
+    let input = input.trim();
+    let input = if let Some(pos) = input.find(",") { &input[pos + 1..] } else { input };
+    let chars: Vec<u8> = input.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
+    let lookup = |c: u8| -> Result<u8, String> {
+        match c {
+            b'A'..=b'Z' => Ok(c - b'A'),
+            b'a'..=b'z' => Ok(c - b'a' + 26),
+            b'0'..=b'9' => Ok(c - b'0' + 52),
+            b'+' => Ok(62),
+            b'/' => Ok(63),
+            b'=' => Ok(0),
+            _ => Err(format!("invalid base64 char: {}", c as char)),
+        }
+    };
+    let mut result = Vec::new();
+    for chunk in chars.chunks(4) {
+        if chunk.len() < 4 { break; }
+        let a = lookup(chunk[0])?;
+        let b = lookup(chunk[1])?;
+        let c = lookup(chunk[2])?;
+        let d = lookup(chunk[3])?;
+        result.push((a << 2) | (b >> 4));
+        if chunk[2] != b'=' { result.push((b << 4) | (c >> 2)); }
+        if chunk[3] != b'=' { result.push((c << 6) | d); }
+    }
+    Ok(result)
+}
+
+// ---------------------------------------------------------------------------
 // Tauri commands – Project-level Claude config
 // ---------------------------------------------------------------------------
 
@@ -832,6 +925,7 @@ pub fn run() {
             create_session,
             list_sessions,
             delete_session,
+            rename_session,
             // Messages
             get_messages,
             save_message,
@@ -852,6 +946,10 @@ pub fn run() {
             // File explorer
             list_dir,
             read_file_content,
+            // Open in terminal
+            open_in_terminal,
+            // Paste image
+            save_pasted_image,
             // Claude CLI config
             get_claude_cli_config,
             // Project-level Claude config

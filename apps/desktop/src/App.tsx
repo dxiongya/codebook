@@ -16,9 +16,17 @@ export default function App() {
     setRightPanelWidth,
   } = useAppStore();
 
-  // Initialize store on mount – load projects from DB and set up event listener
   useEffect(() => {
     useAppStore.getState().init();
+
+    // Prevent browser default file open on drag/drop globally
+    const preventDrop = (e: DragEvent) => { e.preventDefault(); };
+    document.addEventListener('dragover', preventDrop);
+    document.addEventListener('drop', preventDrop);
+    return () => {
+      document.removeEventListener('dragover', preventDrop);
+      document.removeEventListener('drop', preventDrop);
+    };
   }, []);
 
   const dragTarget = useRef<DragTarget>(null);
@@ -69,42 +77,45 @@ export default function App() {
   }, [setLeftPanelWidth, setRightPanelWidth]);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-primary)]">
+    <>
       {settingsOpen && <SettingsPanel />}
-      {/* left panel */}
-      <div
-        className="shrink-0 h-full overflow-hidden"
-        style={{ width: leftPanelWidth }}
-      >
-        <LeftPanel />
+      <div id="app-main" className="flex h-screen w-screen overflow-hidden" style={{ background: '#0A0A0A', borderRadius: 10 }}>
+        {/* left panel */}
+        <div
+          className="shrink-0 h-full overflow-hidden"
+          style={{ width: leftPanelWidth }}
+        >
+          <LeftPanel />
+        </div>
+
+        {/* left resize handle */}
+        <div
+          onMouseDown={(e) => onMouseDown('left', e)}
+          className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
+          style={{ background: '#2a2a2a' }}
+        />
+
+        {/* center panel */}
+        <div className="flex-1 h-full min-w-0 overflow-hidden">
+          <CenterPanel />
+        </div>
+
+        {/* right resize handle */}
+        <div
+          onMouseDown={(e) => onMouseDown('right', e)}
+          className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
+          style={{ background: '#2a2a2a' }}
+        />
+
+        {/* right panel */}
+        <div
+          className="shrink-0 h-full overflow-hidden"
+          style={{ width: rightPanelWidth }}
+        >
+          <RightPanel />
+        </div>
       </div>
-
-      {/* left resize handle */}
-      <div
-        onMouseDown={(e) => onMouseDown('left', e)}
-        className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
-        style={{ background: '#2a2a2a' }}
-      />
-
-      {/* center panel */}
-      <div className="flex-1 h-full min-w-0 overflow-hidden">
-        <CenterPanel />
-      </div>
-
-      {/* right resize handle */}
-      <div
-        onMouseDown={(e) => onMouseDown('right', e)}
-        className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
-        style={{ background: '#2a2a2a' }}
-      />
-
-      {/* right panel */}
-      <div
-        className="shrink-0 h-full overflow-hidden"
-        style={{ width: rightPanelWidth }}
-      >
-        <RightPanel />
-      </div>
-    </div>
+    </>
   );
 }
+

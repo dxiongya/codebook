@@ -21,6 +21,9 @@ export const listSessions = (projectId: string) =>
 export const deleteSession = (id: string) =>
   invoke<void>('delete_session', { id });
 
+export const renameSession = (id: string, name: string) =>
+  invoke<void>('rename_session', { id, name });
+
 // Messages
 export const getMessages = (sessionId: string) =>
   invoke<Message[]>('get_messages', { sessionId });
@@ -74,6 +77,10 @@ export const gitPush = (projectPath: string) =>
 
 export const gitBranch = (projectPath: string) =>
   invoke<string>('git_branch', { projectPath });
+
+// Paste image
+export const savePastedImage = (base64Data: string, projectPath: string) =>
+  invoke<string>('save_pasted_image', { base64Data, projectPath });
 
 // Claude CLI config (read directly from filesystem)
 export const getClaudeCliConfig = () =>

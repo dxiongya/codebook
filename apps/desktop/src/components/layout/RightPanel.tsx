@@ -535,7 +535,7 @@ export function RightPanel() {
             key={key}
             onClick={() => setActiveTab(key)}
             style={{
-              padding: '12px 20px',
+              height: 42, padding: '0 20px',
               fontSize: 12,
               fontWeight: activeTab === key ? 500 : 400,
               color: activeTab === key ? '#10B981' : '#6B7280',

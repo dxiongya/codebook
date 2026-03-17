@@ -45,10 +45,11 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
+  border-radius: 10px;
 }
 
 body {
-  background-color: var(--color-bg-primary);
+  background-color: transparent;
   color: var(--color-text-primary);
   font-family: var(--font-mono);
   font-size: 13px;
@@ -110,6 +111,29 @@ select {
 
 [contenteditable]:focus {
   outline: none;
+}
+
+
+/* Prevent text selection on non-editable UI areas */
+[data-no-select] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow selection in editable elements inside no-select zones */
+[data-no-select] input,
+[data-no-select] textarea,
+[data-no-select] [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Markdown horizontal rule */
+.markdown-content hr {
+  border: none;
+  height: 1px;
+  background: #2a2a2a;
+  margin: 12px 0;
 }
 
 @keyframes pulse {

@@ -51,6 +51,7 @@ function parseContentBlocks(content: string): DisplayBlock[] {
               block.input?.path ??
               block.input?.filePath,
             command: block.input?.command,
+            input: block.input,
           };
         case 'text':
           return { type: 'text', content: block.text ?? block.content ?? '' };
@@ -86,6 +87,7 @@ interface AppState {
   // streaming
   isStreaming: boolean;
   streamingBlocks: DisplayBlock[];
+  lastAssistantMsgId: string | null;
 
   // meta
   totalCost: number;
@@ -113,7 +115,7 @@ interface AppState {
   leftPanelWidth: number;
   rightPanelWidth: number;
   settingsOpen: boolean;
-  rightPanelTab: 'git' | 'files' | 'config';
+  rightPanelTab: 'git' | 'files' | 'refs' | 'config';
 
   // actions – data
   init: () => Promise<void>;
@@ -134,7 +136,7 @@ interface AppState {
   setLeftPanelWidth: (width: number) => void;
   setRightPanelWidth: (width: number) => void;
   setSettingsOpen: (open: boolean) => void;
-  setRightPanelTab: (tab: 'git' | 'files' | 'config') => void;
+  setRightPanelTab: (tab: 'git' | 'files' | 'refs' | 'config') => void;
 }
 
 let _unlisten: UnlistenFn | null = null;
@@ -153,10 +155,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   // streaming
   isStreaming: false,
   streamingBlocks: [],
+  lastAssistantMsgId: null,
 
   // meta
   totalCost: 0,
-  model: 'sonnet',
+  model: 'opus',
 
   // context window usage
   contextUsage: { used: 0, total: 0, percent: 0 },
@@ -185,6 +188,17 @@ export const useAppStore = create<AppState>((set, get) => ({
         const cached = await api.getSetting('claude_init_data');
         if (cached) {
           set({ claudeInitData: JSON.parse(cached) });
+        }
+      } catch { /* ignore */ }
+
+      // Apply saved font size
+      try {
+        const fs = await api.getSetting('display_font_size');
+        if (fs) {
+          const size = parseInt(fs, 10);
+          const scale = size / 13;
+          const el = document.getElementById('app-main');
+          if (el) el.style.zoom = String(scale);
         }
       } catch { /* ignore */ }
 
@@ -223,6 +237,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       ]);
       set({ sessions, references });
 
+      // Restore saved model for this project
+      try {
+        const savedModel = await api.getSetting(`model_${id}`);
+        if (savedModel) set({ model: savedModel });
+      } catch { /* ignore */ }
+
       // Try importing CLI sessions for this project
       const activeProject = get().projects.find((p) => p.id === id);
       if (activeProject) {
@@ -247,11 +267,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectSession: async (id: string) => {
+    // Don't force isStreaming:false — the previous session's process keeps running
+    // The correct streaming state will be set after checking isSessionStreaming below
     set({
       activeSessionId: id,
       messages: [],
       streamingBlocks: [],
-      isStreaming: false,
+      isStreaming: false, // temporary, will be corrected below
       checkpoints: [],
     });
     try {
@@ -276,7 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         checkpoints,
         contextUsage,
         totalCost: session?.total_cost ?? 0,
-        model: session?.model ?? 'sonnet',
+        model: session?.model ?? 'opus',
       });
 
       // Check if there's an active Claude process for this session
@@ -302,7 +324,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   type: 'tool_use',
                   tool: block.name ?? 'unknown',
                   path: input.file_path ?? input.path ?? input.filePath,
-                  command: input.command,
+                  command: input.command, input,
                 };
               }
               if (block.type === 'text') {
@@ -418,6 +440,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         messages: [...s.messages, displayMsg],
         isStreaming: true,
         streamingBlocks: [],
+        lastAssistantMsgId: null,
       }));
 
       // Create checkpoint before sending to Claude
@@ -459,10 +482,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   handleClaudeEvent: (rawEvent: ClaudeEvent) => {
     // Rust emits: { session_id, type, data }
-    // We need to handle the actual structure from claude.rs
     const evt = rawEvent as any;
     const eventType: string = evt.event_type ?? evt.type ?? '';
     const data = evt.data ?? {};
+    const eventSessionId = evt.session_id ?? '';
+
+    // Only process events for the active session (others run in background)
+    const { activeSessionId } = get();
+    if (eventSessionId && activeSessionId && eventSessionId !== activeSessionId) {
+      // Event for a different session — ignore UI updates
+      // The Rust buffer still accumulates for when user switches back
+      return;
+    }
 
     switch (eventType) {
       case 'system_init': {
@@ -484,6 +515,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ claudeInitData: initData });
         // Persist so it's available on next app launch
         api.setSetting('claude_init_data', JSON.stringify(initData)).catch(() => {});
+        // Track known models
+        if (initData.model) {
+          api.getSetting('known_models').then((val) => {
+            const models: string[] = val ? JSON.parse(val) : [];
+            if (!models.includes(initData.model)) {
+              models.push(initData.model);
+              api.setSetting('known_models', JSON.stringify(models)).catch(() => {});
+            }
+          }).catch(() => {});
+        }
         break;
       }
 
@@ -491,6 +532,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         // data.content is an array of Claude content blocks
         const content = data.content ?? [];
         if (!Array.isArray(content)) break;
+
+        // Get message ID to detect same-message updates vs new messages
+        const msgId = data.message?.id ?? '';
 
         const newBlocks: DisplayBlock[] = content.map((block: any): DisplayBlock => {
           if (block.type === 'thinking') {
@@ -506,7 +550,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               type: 'tool_use',
               tool: block.name ?? 'unknown',
               path: input.file_path ?? input.path ?? input.filePath,
-              command: input.command,
+              command: input.command, input,
             };
           }
           if (block.type === 'text') {
@@ -515,8 +559,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           return { type: 'text', content: JSON.stringify(block) };
         });
 
-        // Accumulate blocks (each assistant event may add more)
-        set((s) => ({ streamingBlocks: [...s.streamingBlocks, ...newBlocks] }));
+        // Always append — Rust buffer is the authority, each event has new blocks
+        set((s) => ({
+          streamingBlocks: [...s.streamingBlocks, ...newBlocks],
+          lastAssistantMsgId: msgId || s.lastAssistantMsgId,
+        }));
         break;
       }
 
@@ -588,7 +635,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  setModel: (model: string) => set({ model }),
+  setModel: (model: string) => {
+    set({ model });
+    // Persist per project
+    const { activeProjectId } = get();
+    if (activeProjectId) {
+      api.setSetting(`model_${activeProjectId}`, model).catch(() => {});
+    }
+  },
 
   // -------- UI layout actions --------
 

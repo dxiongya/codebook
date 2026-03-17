@@ -10,14 +10,17 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "CodeBook",
+        "title": "",
         "width": 1400,
         "height": 900,
         "minWidth": 1000,
         "minHeight": 700,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {

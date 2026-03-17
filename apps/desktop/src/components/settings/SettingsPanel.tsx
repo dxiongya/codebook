@@ -585,20 +585,30 @@ function RemoteSection() {
   );
 }
 
+function applyFontSize(size: number) {
+  const scale = size / 13;
+  // Apply zoom only to the main app container, not the settings overlay
+  const appContainer = document.getElementById('app-main');
+  if (appContainer) appContainer.style.zoom = String(scale);
+}
+
 function DisplaySection() {
   const [fontSize, setFontSize] = useState(13);
 
   useEffect(() => {
     api.getSetting('display_font_size').then((v) => {
-      if (v) setFontSize(parseInt(v, 10));
+      if (v) {
+        const size = parseInt(v, 10);
+        setFontSize(size);
+        applyFontSize(size);
+      }
     }).catch(() => {});
   }, []);
 
   const handleFontSizeChange = (v: number) => {
     setFontSize(v);
+    applyFontSize(v);
     api.setSetting('display_font_size', String(v)).catch(console.error);
-    // Apply globally
-    document.documentElement.style.fontSize = `${v}px`;
   };
 
   return (

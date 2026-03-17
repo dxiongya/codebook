@@ -1,5 +1,8 @@
+import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { open } from '@tauri-apps/plugin-dialog';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import * as api from '../../lib/api';
 
 export function LeftPanel() {
   const {
@@ -17,6 +20,74 @@ export function LeftPanel() {
     deleteSession,
     isStreaming,
   } = useAppStore();
+
+  const [contextMenu, setContextMenu] = useState<{
+    x: number; y: number;
+    type: 'session' | 'project';
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // Close context menu on any click
+  useEffect(() => {
+    const close = () => setContextMenu(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
+
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const startRename = (sessionId: string, currentName: string) => {
+    setRenamingId(sessionId);
+    setRenameValue(currentName);
+  };
+
+  const commitRename = async () => {
+    if (renamingId && renameValue.trim()) {
+      await api.renameSession(renamingId, renameValue.trim());
+      // Update local state
+      useAppStore.setState((s) => ({
+        sessions: s.sessions.map((sess) =>
+          sess.id === renamingId ? { ...sess, name: renameValue.trim() } : sess
+        ),
+      }));
+    }
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
+
+  // Cache session counts per project (so collapsed projects show correct count)
+  const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    // Load counts for all projects
+    projects.forEach(async (p) => {
+      try {
+        const s = await api.listSessions(p.id);
+        setSessionCounts((prev) => ({ ...prev, [p.id]: s.length }));
+      } catch { /* ignore */ }
+    });
+  }, [projects]);
+
+  // Update cache when sessions change for the active project
+  useEffect(() => {
+    if (activeProjectId) {
+      setSessionCounts((prev) => ({ ...prev, [activeProjectId]: sessions.length }));
+    }
+  }, [sessions.length, activeProjectId]);
 
   const handleAddProject = async () => {
     const selected = await open({ directory: true });
@@ -52,17 +123,29 @@ export function LeftPanel() {
 
   return (
     <div
+      data-no-select
       className="flex flex-col h-full"
       style={{ background: '#0A0A0A', borderRight: '1px solid #2a2a2a' }}
     >
-      {/* logo */}
+      {/* window controls + logo — single row */}
       <div
         className="flex items-center shrink-0"
-        style={{ padding: '16px 20px', gap: 8, borderBottom: '1px solid #2a2a2a' }}
+        onMouseDown={(e) => {
+          const tag = (e.target as HTMLElement).tagName.toLowerCase();
+          if (tag === 'div') getCurrentWindow().startDragging();
+        }}
+        style={{ height: 42, padding: '0 16px', gap: 10, borderBottom: '1px solid #2a2a2a' }}
       >
-        <span style={{ color: '#10B981', fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{'>'}</span>
-        <span style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 500, lineHeight: 1.3 }}>codebook</span>
-        <span style={{ color: '#6B7280', fontSize: 11, lineHeight: 1 }}>v0.1</span>
+        {/* traffic lights */}
+        <div className="flex items-center" style={{ gap: 6, flexShrink: 0 }}>
+          <span onClick={() => getCurrentWindow().close()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer' }} />
+          <span onClick={() => getCurrentWindow().minimize()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#FEBC2E', cursor: 'pointer' }} />
+          <span onClick={() => getCurrentWindow().toggleMaximize()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#28C840', cursor: 'pointer' }} />
+        </div>
+        {/* logo */}
+        <span style={{ color: '#10B981', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{'>'}</span>
+        <span style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 500, lineHeight: 1 }}>codebook</span>
+        <span style={{ color: '#6B7280', fontSize: 10, lineHeight: 1 }}>v0.1</span>
       </div>
 
       {/* search */}
@@ -112,6 +195,10 @@ export function LeftPanel() {
                   }
                 }}
                 className="w-full text-left flex items-center"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, type: 'project', id: project.id, name: project.name });
+                }}
                 style={{
                   padding: '8px 16px',
                   gap: 8,
@@ -142,7 +229,7 @@ export function LeftPanel() {
                 )}
                 {!isExpanded && (
                   <span style={{ color: '#4B5563', fontSize: 12 }}>
-                    [{sessions.length}]
+                    [{sessionCounts[project.id] ?? 0}]
                   </span>
                 )}
               </button>
@@ -172,12 +259,39 @@ export function LeftPanel() {
                             flexShrink: 0,
                             animation: isActive && isStreaming ? 'pulse 1.5s ease-in-out infinite' : 'none',
                           }} />
-                          <span style={{
-                            color: isActive ? '#10B981' : '#9CA3AF',
-                            fontSize: 13, flex: 1,
-                          }}>
-                            {session.name}
-                          </span>
+                          {renamingId === session.id ? (
+                            <input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                                if (e.key === 'Escape') cancelRename();
+                              }}
+                              onBlur={commitRename}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                color: '#10B981', fontSize: 13, flex: 1,
+                                background: '#0A0A0A', border: '1px solid #10B981',
+                                padding: '1px 4px', outline: 'none', fontFamily: 'inherit',
+                              }}
+                            />
+                          ) : (
+                            <span
+                              onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setContextMenu({ x: e.clientX, y: e.clientY, type: 'session', id: session.id, name: session.name });
+                              }}
+                              style={{
+                                color: isActive ? '#10B981' : '#9CA3AF',
+                                fontSize: 13, flex: 1,
+                              }}
+                            >
+                              {session.name}
+                            </span>
+                          )}
                           <span style={{ color: '#4B5563', fontSize: 12 }}>
                             {formatTime(session.updated_at)}
                           </span>
@@ -250,7 +364,9 @@ export function LeftPanel() {
                           style={{ padding: '5px 10px', gap: 6, cursor: 'grab' }}
                         >
                           <span style={{ color: '#06B6D4', fontSize: 13 }}>→</span>
-                          <span style={{ color: '#06B6D4', fontSize: 13, flex: 1, opacity: 0.85 }}>
+                          <span style={{ color: '#06B6D4', fontSize: 13, flex: 1, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            title={ref.path}
+                          >
                             {ref.label ?? ref.path.split('/').filter(Boolean).pop() ?? ref.path}/
                           </span>
                           <span
@@ -304,6 +420,95 @@ export function LeftPanel() {
           >[⚙]</span>
         </div>
       </div>
+
+      {/* context menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 1000,
+            background: '#161616',
+            border: '1px solid #333',
+            borderRadius: 6,
+            padding: '4px',
+            minWidth: 160,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(8px)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.type === 'session' && (
+            <>
+              <div
+                onClick={() => { startRename(contextMenu.id, contextMenu.name); setContextMenu(null); }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                rename
+              </div>
+              <div
+                onClick={() => { deleteSession(contextMenu.id); setContextMenu(null); }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                delete
+              </div>
+            </>
+          )}
+          {contextMenu.type === 'project' && (
+            <>
+              <div
+                onClick={() => {
+                  const p = projects.find((pr) => pr.id === contextMenu.id);
+                  if (p) { import('@tauri-apps/plugin-opener').then((m) => m.revealItemInDir(p.path)); }
+                  setContextMenu(null);
+                }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                open in finder
+              </div>
+              <div
+                onClick={async () => {
+                  const p = projects.find((pr) => pr.id === contextMenu.id);
+                  if (p) {
+                    const terminal = await api.getSetting('preferred_terminal').catch(() => null);
+                    import('@tauri-apps/api/core').then((m) => m.invoke('open_in_terminal', { path: p.path, terminal })).catch(() => {});
+                  }
+                  setContextMenu(null);
+                }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                open in terminal
+              </div>
+              <div
+                onClick={() => { useAppStore.getState().setRightPanelTab('config'); setContextMenu(null); }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                config
+              </div>
+              <div style={{ height: 1, background: '#2a2a2a', margin: '3px 8px' }} />
+              <div
+                onClick={() => { useAppStore.getState().deleteProject(contextMenu.id); setContextMenu(null); }}
+                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+              >
+                remove from codebook
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

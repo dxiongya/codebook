@@ -112,6 +112,9 @@ impl ClaudeManager {
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
+            // Track how many content blocks we've already sent per message ID
+            // so we only forward NEW blocks (Claude CLI resends full content each time)
+            let mut sent_block_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
             while let Ok(Some(line)) = lines.next_line().await {
                 if line.trim().is_empty() {
@@ -145,32 +148,49 @@ impl ClaudeManager {
                     }
                     Some("assistant") => {
                         // Extract content blocks from message.content
-                        let content = parsed
+                        let full_content = parsed
                             .get("message")
                             .and_then(|m| m.get("content"))
                             .cloned()
                             .unwrap_or(serde_json::Value::Array(vec![]));
 
-                        // Store content in the per-session buffer
-                        {
-                            let mut bufs = buffers.lock().await;
-                            if let Some(buf) = bufs.get_mut(&sid) {
-                                buf.push(content.clone());
+                        let msg_id = parsed
+                            .get("message")
+                            .and_then(|m| m.get("id"))
+                            .and_then(|id| id.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        // Calculate new blocks only (CLI sends full content each time)
+                        let all_blocks = full_content.as_array().cloned().unwrap_or_default();
+                        let prev_count = sent_block_counts.get(&msg_id).copied().unwrap_or(0);
+                        let new_blocks: Vec<serde_json::Value> = all_blocks[prev_count..].to_vec();
+                        sent_block_counts.insert(msg_id, all_blocks.len());
+
+                        if new_blocks.is_empty() {
+                            // No new blocks — skip this event
+                            None
+                        } else {
+                            // Store only new blocks in the per-session buffer
+                            {
+                                let mut bufs = buffers.lock().await;
+                                if let Some(buf) = bufs.get_mut(&sid) {
+                                    buf.push(serde_json::Value::Array(new_blocks.clone()));
+                                }
                             }
-                        }
 
-                        let mut data = serde_json::Map::new();
-                        data.insert("content".to_string(), content);
-                        // Forward the full message for any extra fields
-                        if let Some(msg) = parsed.get("message") {
-                            data.insert("message".to_string(), msg.clone());
-                        }
+                            let mut data = serde_json::Map::new();
+                            data.insert("content".to_string(), serde_json::Value::Array(new_blocks));
+                            if let Some(msg) = parsed.get("message") {
+                                data.insert("message".to_string(), msg.clone());
+                            }
 
-                        Some(ClaudeEvent {
-                            session_id: sid.clone(),
-                            event_type: "assistant".to_string(),
-                            data: serde_json::Value::Object(data),
-                        })
+                            Some(ClaudeEvent {
+                                session_id: sid.clone(),
+                                event_type: "assistant".to_string(),
+                                data: serde_json::Value::Object(data),
+                            })
+                        }
                     }
                     Some("result") => {
                         // Clear the buffer for this session (streaming is done)

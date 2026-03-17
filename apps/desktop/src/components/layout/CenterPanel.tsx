@@ -6,75 +6,116 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { open } from '@tauri-apps/plugin-dialog';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 /* ── sub-components ────────────────────────────────────────── */
 
+// Timeline icon for tool types
+function toolIcon(tool: string): { icon: string; color: string } {
+  const t = tool.toLowerCase();
+  if (t === 'edit' || t === 'write') return { icon: '✎', color: '#10B981' };
+  if (t === 'bash') return { icon: '⬚', color: '#06B6D4' };
+  if (t === 'read') return { icon: '◉', color: '#6B7280' };
+  if (t === 'glob' || t === 'grep') return { icon: '⊕', color: '#6B7280' };
+  return { icon: '◆', color: '#6B7280' };
+}
+
 function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
   const [expanded, setExpanded] = useState(false);
+  // Extract first meaningful line as summary
+  const summary = block.content.split('\n').find(l => l.trim().length > 0)?.trim().slice(0, 80) || '';
 
   return (
-    <div style={{ marginBottom: 8 }}>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full text-left flex items-center justify-between"
-        style={{
-          padding: '8px 12px',
-          border: '1px solid #3d3560',
-          borderRadius: expanded ? '0' : 0,
-          background: 'transparent',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        <div className="flex items-center" style={{ gap: 6 }}>
-          <span style={{ color: '#a78bfa', fontSize: 10 }}>{expanded ? '▾' : '▸'}</span>
-          <span style={{ color: '#a78bfa', fontSize: 11 }}>// thinking</span>
+    <div
+      className="flex items-start"
+      onClick={() => setExpanded(!expanded)}
+      style={{ cursor: 'pointer', gap: 8, padding: '5px 0' }}
+    >
+      {/* timeline dot */}
+      <span style={{ color: '#a78bfa', fontSize: 13, lineHeight: '20px', flexShrink: 0, width: 18, textAlign: 'center' }}>⊙</span>
+      {/* content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-center" style={{ gap: 8, lineHeight: '20px' }}>
+          <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 600 }}>Thinking</span>
+          <span style={{ color: '#6B7280', fontSize: 12, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {summary ? `**${summary}**` : ''}
+          </span>
+          <span style={{ color: '#4B5563', fontSize: 11, flexShrink: 0 }}>
+            {block.chars > 1000 ? `${(block.chars / 1000).toFixed(1)}k` : block.chars} chars
+          </span>
         </div>
-        <span style={{ color: '#4B5563', fontSize: 10 }}>
-          {(block.chars / 1000).toFixed(1)}k chars
-        </span>
-      </button>
-      {expanded && (
-        <div style={{
-          padding: '12px 14px',
-          border: '1px solid #3d3560',
-          borderTop: 'none',
-          background: '#1a1825',
-          color: '#c4b5fd',
-          fontSize: 12,
-          lineHeight: 1.6,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          maxHeight: 400,
-          overflowY: 'auto',
-        }}>
-          {block.content}
-        </div>
-      )}
+        {expanded && (
+          <div style={{
+            marginTop: 6,
+            padding: '10px 12px',
+            background: '#1a1825',
+            border: '1px solid #2a2040',
+            color: '#c4b5fd',
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            maxHeight: 300,
+            overflowY: 'auto',
+          }}>
+            {block.content}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function ToolBlockView({ block }: { block: DisplayToolBlock }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasDetails = block.input && Object.keys(block.input).length > 0;
+  const { icon, color } = toolIcon(block.tool);
+
+  // Build description
+  const desc = block.path || block.command || '';
+  const diffInfo = block.additions != null
+    ? `+${block.additions}${block.deletions ? ` -${block.deletions}` : ''}`
+    : '';
+
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div
-        className="flex items-center"
-        style={{
-          padding: '8px 12px',
-          border: '1px solid #2a4030',
-          gap: 8,
-          cursor: 'pointer',
-        }}
-      >
-        <span style={{ color: '#10B981', fontSize: 10 }}>▸</span>
-        <span style={{ color: '#10B981', fontSize: 11, fontWeight: 500 }}>{block.tool}</span>
-        {block.path && <span style={{ color: '#FAFAFA', fontSize: 11 }}>{block.path}</span>}
-        {block.command && <span style={{ color: '#FAFAFA', fontSize: 11 }}>{block.command}</span>}
-        {block.additions != null && (
-          <span style={{ color: '#4B5563', fontSize: 10 }}>
-            +{block.additions}{block.deletions ? ` -${block.deletions}` : ''}
+    <div
+      className="flex items-start"
+      onClick={() => hasDetails && setExpanded(!expanded)}
+      style={{ cursor: hasDetails ? 'pointer' : 'default', gap: 8, padding: '5px 0' }}
+    >
+      {/* timeline dot */}
+      <span style={{ color, fontSize: 13, lineHeight: '20px', flexShrink: 0, width: 18, textAlign: 'center' }}>{icon}</span>
+      {/* content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-center" style={{ gap: 8, lineHeight: '20px' }}>
+          <span style={{ color: '#FAFAFA', fontSize: 13, fontWeight: 600 }}>{block.tool}</span>
+          <span style={{ color: '#9CA3AF', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {desc}
           </span>
+          {diffInfo && (
+            <span style={{ fontSize: 11, flexShrink: 0 }}>
+              <span style={{ color: '#10B981' }}>{diffInfo.split(' ')[0]}</span>
+              {diffInfo.includes('-') && <span style={{ color: '#EF4444' }}> {diffInfo.split(' ')[1]}</span>}
+            </span>
+          )}
+        </div>
+        {expanded && hasDetails && (
+          <div style={{
+            marginTop: 6,
+            padding: '10px 12px',
+            background: '#0a1a0f',
+            border: '1px solid #1a2a1a',
+            fontSize: 11,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: '#86efac',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            maxHeight: 300,
+            overflowY: 'auto',
+          }}>
+            {JSON.stringify(block.input, null, 2)}
+          </div>
         )}
       </div>
     </div>
@@ -85,7 +126,7 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
   return (
     <div
       className="markdown-content"
-      style={{ padding: '12px 16px', border: '1px solid #2a2a2a' }}
+      style={{ padding: '8px 0' }}
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
@@ -308,6 +349,28 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
     );
   }
 
+  // Group blocks into segments: each segment = activity blocks + reply (text block)
+  // Pattern: [thinking, tool, tool, text, thinking, tool, text] → 2 segments
+  const segments: { activity: DisplayBlock[]; reply: DisplayBlock | null }[] = [];
+  let currentActivity: DisplayBlock[] = [];
+  for (const block of msg.blocks) {
+    if (block.type === 'text') {
+      segments.push({ activity: currentActivity, reply: block });
+      currentActivity = [];
+    } else {
+      currentActivity.push(block);
+    }
+  }
+  // Trailing activity without reply (still in progress or no text)
+  if (currentActivity.length > 0) {
+    segments.push({ activity: currentActivity, reply: null });
+  }
+
+  const [collapsedSegments, setCollapsedSegments] = useState<Record<number, boolean>>({});
+  const toggleSegment = (idx: number) => {
+    setCollapsedSegments((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
   return (
     <div>
       {/* assistant header */}
@@ -316,13 +379,36 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
         {msg.model && <span style={{ color: '#6B7280', fontSize: 10 }}>{msg.model}</span>}
         <span style={{ color: '#4B5563', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
       </div>
-      {/* assistant blocks — design: gap 8 between blocks */}
-      <div>
-        {msg.blocks.map((block, j) => (
-          <BlockRenderer key={j} block={block} />
-        ))}
-      </div>
-      {/* result bar if we have cost/duration */}
+
+      {segments.map((seg, idx) => (
+        <div key={idx} style={{ marginBottom: 8 }}>
+          {/* activity */}
+          {seg.activity.length > 0 && (
+            <div style={{ marginBottom: seg.reply ? 8 : 0 }}>
+              <div
+                className="flex items-center"
+                onClick={() => toggleSegment(idx)}
+                style={{ gap: 6, cursor: 'pointer', marginBottom: collapsedSegments[idx] ? 0 : 6 }}
+              >
+                <span style={{ color: '#6B7280', fontSize: 13 }}>{collapsedSegments[idx] ? '▸' : '▾'}</span>
+                <span style={{ color: '#9CA3AF', fontSize: 13 }}>Activity</span>
+                <span style={{ color: '#4B5563', fontSize: 12 }}>{seg.activity.length} steps</span>
+              </div>
+              {!collapsedSegments[idx] && (
+                <div style={{ borderLeft: '1px solid #2a2a2a', marginLeft: 9 }}>
+                  {seg.activity.map((block, j) => (
+                    <BlockRenderer key={j} block={block} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {/* reply */}
+          {seg.reply && <BlockRenderer block={seg.reply} />}
+        </div>
+      ))}
+
+      {/* result bar */}
       {(msg.cost != null || msg.duration_ms != null) && (
         <div className="flex items-center" style={{ padding: '6px 0', gap: 16, marginTop: 8 }}>
           <div style={{ flex: 1, height: 1, background: '#2a2a2a' }} />
@@ -341,6 +427,23 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
 
 export function CenterPanel() {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const defaultModels = [
+    { id: 'opus', label: 'Opus 4.6 with 1M context · Most capable for complex work' },
+    { id: 'sonnet', label: 'Sonnet 4.6 · Best for everyday tasks' },
+    { id: 'haiku', label: 'Haiku 4.5 · Fastest for quick answers' },
+  ];
+  const [extraModels, setExtraModels] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.getSetting('known_models').then((val) => {
+      if (val) {
+        const models: string[] = JSON.parse(val);
+        const defaultIds = defaultModels.map((m) => m.id);
+        setExtraModels(models.filter((m) => !defaultIds.includes(m)));
+      }
+    }).catch(() => {});
+  }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -372,33 +475,74 @@ export function CenterPanel() {
     if (!el) return { text: '', refs: {} as Record<string, string> };
     const refs: Record<string, string> = {};
     let text = '';
-    el.childNodes.forEach((node) => {
+    // Recursively walk all nodes (browser may wrap text in divs/spans)
+    const walk = (node: Node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         text += node.textContent ?? '';
-      } else if (node instanceof HTMLElement && node.dataset.filePath) {
-        const tag = node.textContent ?? '';
-        refs[tag] = node.dataset.filePath;
-        text += tag;
+      } else if (node instanceof HTMLElement) {
+        if (node.dataset.filePath) {
+          const tag = node.textContent ?? '';
+          refs[tag] = node.dataset.filePath;
+          text += tag;
+        } else {
+          // Handle browser-inserted divs/spans (e.g., <div>text</div> from Enter)
+          if (node.tagName === 'BR') {
+            text += '\n';
+          } else {
+            if (node.tagName === 'DIV' && text.length > 0 && !text.endsWith('\n')) {
+              text += '\n';
+            }
+            node.childNodes.forEach(walk);
+          }
+        }
       }
-    });
+    };
+    el.childNodes.forEach(walk);
     return { text, refs };
   }, []);
 
   // Helper: insert file chip at cursor position
-  const insertFileChip = useCallback((filePath: string) => {
+  const insertFileChip = useCallback((filePath: string, dataUrl?: string) => {
     const el = editorRef.current;
     if (!el) return;
 
     const name = filePath.split('/').filter(Boolean).pop() || filePath;
     const hasExt = name.includes('.');
     const isDir = !hasExt;
+    const ext = name.split('.').pop()?.toLowerCase() ?? '';
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext);
+
     const chip = document.createElement('span');
     chip.contentEditable = 'false';
     chip.dataset.filePath = filePath;
-    chip.textContent = isDir ? `@${name}/` : `@${name}`;
-    chip.style.cssText = isDir
-      ? 'background:#1a1a2a;border:1px solid #2a3050;color:#06B6D4;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;'
-      : 'background:#1a2a1a;border:1px solid #2a4030;color:#10B981;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;';
+
+    if (isImage) {
+      // Image chip with thumbnail
+      chip.style.cssText = 'background:#1a2a1a;border:1px solid #2a4030;padding:2px 6px 2px 2px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-flex;align-items:center;gap:4px;line-height:18px;vertical-align:baseline;user-select:all;cursor:pointer;';
+      const img = document.createElement('img');
+      img.src = dataUrl || convertFileSrc(filePath);
+      img.style.cssText = 'height:20px;max-width:40px;object-fit:cover;border-radius:1px;';
+      img.onerror = () => { img.style.display = 'none'; };
+      chip.appendChild(img);
+      const label = document.createElement('span');
+      label.textContent = `@${name}`;
+      label.style.color = '#10B981';
+      chip.appendChild(label);
+      // Store dataUrl for preview
+      if (dataUrl) chip.dataset.dataUrl = dataUrl;
+      // Click to preview
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setPreviewImage(dataUrl || convertFileSrc(filePath));
+      });
+    } else if (isDir) {
+      chip.textContent = `@${name}/`;
+      chip.style.cssText = 'background:#1a1a2a;border:1px solid #2a3050;color:#06B6D4;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;';
+    } else {
+      chip.textContent = `@${name}`;
+      chip.style.cssText = 'background:#1a2a1a;border:1px solid #2a4030;color:#10B981;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;';
+    }
 
     const space = document.createTextNode('\u00A0');
     const sel = window.getSelection();
@@ -426,7 +570,7 @@ export function CenterPanel() {
       sel?.addRange(range);
     }
     el.focus();
-  }, []);
+  }, [setPreviewImage]);
 
   const handleSend = async () => {
     const { text, refs } = getEditorContent();
@@ -447,7 +591,9 @@ export function CenterPanel() {
       e.preventDefault();
       handleSend();
     }
-    // Backspace on empty → don't bubble
+    if (e.key === 'Escape' && previewImage) {
+      setPreviewImage(null);
+    }
   };
 
   const addFileRef = (filePath: string) => {
@@ -476,10 +622,18 @@ export function CenterPanel() {
 
   return (
     <div className="flex flex-col h-full" style={{ background: '#0A0A0A' }}>
-      {/* header — design: padding [12,24], height 45px, space_between */}
+      {/* header — draggable for window move */}
       <div
+        data-no-select
         className="flex items-center justify-between shrink-0"
-        style={{ padding: '12px 24px', borderBottom: '1px solid #2a2a2a' }}
+        onMouseDown={(e) => {
+          // Allow drag on empty header space
+          const tag = (e.target as HTMLElement).tagName.toLowerCase();
+          if (tag === 'div' || tag === 'span') {
+            getCurrentWindow().startDragging();
+          }
+        }}
+        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid #2a2a2a' }}
       >
         <div className="flex items-center" style={{ gap: 10 }}>
           <span style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 700 }}>
@@ -508,29 +662,41 @@ export function CenterPanel() {
             />
           ))}
 
-          {/* streaming blocks */}
-          {isStreaming && streamingBlocks.length > 0 && (
-            <div>
-              <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-                <span style={{ color: '#10B981', fontSize: 12, fontWeight: 700 }}>{'>'} claude</span>
-                <span style={{ color: '#6B7280', fontSize: 10 }}>{model}</span>
-                <span
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: '#F59E0B',
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                  }}
-                />
-              </div>
+          {/* streaming blocks — same Activity timeline layout */}
+          {isStreaming && streamingBlocks.length > 0 && (() => {
+            const sActivity = streamingBlocks.filter((b) => b.type === 'thinking' || b.type === 'tool_use');
+            const sReply = streamingBlocks.filter((b) => b.type === 'text');
+            return (
               <div>
-                {streamingBlocks.map((block, j) => (
-                  <BlockRenderer key={j} block={block} />
-                ))}
+                <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
+                  <span style={{ color: '#10B981', fontSize: 12, fontWeight: 700 }}>{'>'} claude</span>
+                  <span style={{ color: '#6B7280', fontSize: 10 }}>{model}</span>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                </div>
+                {sActivity.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+                      <span style={{ color: '#6B7280', fontSize: 13 }}>▾</span>
+                      <span style={{ color: '#9CA3AF', fontSize: 13 }}>Activity</span>
+                      <span style={{ color: '#4B5563', fontSize: 12 }}>{sActivity.length} steps</span>
+                    </div>
+                    <div style={{ borderLeft: '1px solid #2a2a2a', marginLeft: 9 }}>
+                      {sActivity.map((block, j) => (
+                        <BlockRenderer key={j} block={block} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {sReply.length > 0 && (
+                  <div>
+                    {sReply.map((block, j) => (
+                      <BlockRenderer key={j} block={block} />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* streaming indicator when no blocks yet */}
           {isStreaming && streamingBlocks.length === 0 && (
@@ -558,6 +724,7 @@ export function CenterPanel() {
         className="shrink-0"
         onDragOver={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           e.dataTransfer.dropEffect = 'copy';
           setIsDragOver(true);
         }}
@@ -567,19 +734,52 @@ export function CenterPanel() {
             setIsDragOver(false);
           }
         }}
-        onDrop={(e) => {
+        onDrop={async (e) => {
           e.preventDefault();
           setIsDragOver(false);
+
+          // Position cursor at drop point
+          const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+          if (range) {
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          }
+
+          // Handle internal drag (text path)
           const filePath = e.dataTransfer.getData('text/plain');
           if (filePath && filePath.startsWith('/')) {
-            // Position cursor at drop point before inserting chip
-            const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-            if (range) {
-              const sel = window.getSelection();
-              sel?.removeAllRanges();
-              sel?.addRange(range);
-            }
             insertFileChip(filePath);
+            return;
+          }
+
+          // Handle external file drop (from OS)
+          const files = e.dataTransfer.files;
+          if (files && files.length > 0) {
+            for (const file of Array.from(files)) {
+              // For images, save to project and insert chip
+              if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                  const base64 = reader.result as string;
+                  const { projects, activeProjectId } = useAppStore.getState();
+                  const project = projects.find((p) => p.id === activeProjectId);
+                  if (!project) return;
+                  try {
+                    const savedPath = await api.savePastedImage(base64, project.path);
+                    insertFileChip(savedPath, base64);
+                  } catch (err) {
+                    console.error('Failed to save dropped image:', err);
+                  }
+                };
+                reader.readAsDataURL(file);
+              } else {
+                // Non-image files: use the path directly if available
+                // Note: web File API doesn't expose full path for security
+                // The file name is inserted as a reference
+                insertFileChip(`[dropped: ${file.name}]`);
+              }
+            }
           }
         }}
         style={{
@@ -613,18 +813,16 @@ export function CenterPanel() {
                 outline: 'none',
               }}
             >
-              <optgroup label="fast">
-                <option value="haiku">haiku</option>
-                <option value="sonnet">sonnet</option>
-              </optgroup>
-              <optgroup label="powerful">
-                <option value="opus">opus</option>
-              </optgroup>
-              <optgroup label="full model id">
-                <option value="claude-sonnet-4-6">claude-sonnet-4-6</option>
-                <option value="claude-opus-4-6">claude-opus-4-6</option>
-                <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
-              </optgroup>
+              {defaultModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+              {extraModels.length > 0 && (
+                <optgroup label="previously used">
+                  {extraModels.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             {/* custom arrow */}
             <span style={{
@@ -647,6 +845,33 @@ export function CenterPanel() {
               contentEditable={!!activeSessionId}
               suppressContentEditableWarning
               onKeyDown={handleKeyDown}
+              onPaste={async (e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                for (const item of Array.from(items)) {
+                  if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const blob = item.getAsFile();
+                    if (!blob) return;
+                    // Convert to base64
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      const base64 = reader.result as string;
+                      const { projects, activeProjectId } = useAppStore.getState();
+                      const project = projects.find((p) => p.id === activeProjectId);
+                      if (!project) return;
+                      try {
+                        const savedPath = await api.savePastedImage(base64, project.path);
+                        insertFileChip(savedPath, base64);
+                      } catch (err) {
+                        console.error('Failed to save pasted image:', err);
+                      }
+                    };
+                    reader.readAsDataURL(blob);
+                    return;
+                  }
+                }
+              }}
               data-placeholder="type a message..."
               style={{
                 color: '#FAFAFA', fontSize: 13, fontFamily: 'inherit',
@@ -718,6 +943,38 @@ export function CenterPanel() {
           </span>
         </div>
       </div>
+
+      {/* image preview modal */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setPreviewImage(null); }}
+          tabIndex={0}
+          ref={(el) => el?.focus()}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={previewImage}
+              style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
+            />
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <span style={{ color: '#6B7280', fontSize: 11 }}>{previewImage.split('/').pop()}</span>
+              <span
+                onClick={() => setPreviewImage(null)}
+                style={{ color: '#6B7280', fontSize: 12, marginLeft: 16, cursor: 'pointer' }}
+              >
+                [esc]
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* pulse animation */}
       <style>{`
