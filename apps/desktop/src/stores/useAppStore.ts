@@ -89,6 +89,9 @@ interface AppState {
   streamingBlocks: DisplayBlock[];
   lastAssistantMsgId: string | null;
 
+  // Cache streaming state per session for background processes
+  streamingCache: Record<string, { blocks: DisplayBlock[]; startTime: number }>;
+
   // meta
   totalCost: number;
   model: string;
@@ -114,6 +117,8 @@ interface AppState {
   // UI layout (preserved from original)
   leftPanelWidth: number;
   rightPanelWidth: number;
+  leftPanelVisible: boolean;
+  rightPanelVisible: boolean;
   settingsOpen: boolean;
   rightPanelTab: 'git' | 'files' | 'refs' | 'config';
 
@@ -135,11 +140,16 @@ interface AppState {
   // actions – UI layout
   setLeftPanelWidth: (width: number) => void;
   setRightPanelWidth: (width: number) => void;
+  setLeftPanelVisible: (visible: boolean) => void;
+  setRightPanelVisible: (visible: boolean) => void;
+  toggleLeftPanel: () => void;
+  toggleRightPanel: () => void;
   setSettingsOpen: (open: boolean) => void;
   setRightPanelTab: (tab: 'git' | 'files' | 'refs' | 'config') => void;
 }
 
 let _unlisten: UnlistenFn | null = null;
+let _listenerRegistering = false;
 
 export const useAppStore = create<AppState>((set, get) => ({
   // data
@@ -156,6 +166,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isStreaming: false,
   streamingBlocks: [],
   lastAssistantMsgId: null,
+  streamingCache: {},
 
   // meta
   totalCost: 0,
@@ -173,6 +184,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // UI
   leftPanelWidth: 260,
   rightPanelWidth: 340,
+  leftPanelVisible: true,
+  rightPanelVisible: true,
   settingsOpen: false,
   rightPanelTab: 'git',
 
@@ -202,8 +215,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       } catch { /* ignore */ }
 
-      // Set up claude-event listener once
-      if (!_unlisten) {
+      // Set up claude-event listener once (guard against StrictMode double-invoke)
+      if (!_unlisten && !_listenerRegistering) {
+        _listenerRegistering = true;
         _unlisten = await listen('claude-event', (event) => {
           // event.payload is the ClaudeEvent from Rust (with session_id, event_type/type, data)
           const payload = event.payload as any;
@@ -221,6 +235,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectProject: async (id: string) => {
+    // Save current session's streaming state before switching projects
+    const { activeSessionId: prevSessionId, isStreaming: wasStreaming, streamingBlocks: prevBlocks } = get();
+    if (prevSessionId && wasStreaming && prevBlocks.length > 0) {
+      set((s) => ({
+        streamingCache: {
+          ...s.streamingCache,
+          [prevSessionId]: { blocks: prevBlocks, startTime: Date.now() },
+        },
+      }));
+    }
+
     set({
       activeProjectId: id,
       activeSessionId: null,
@@ -229,6 +254,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       messages: [],
       streamingBlocks: [],
       isStreaming: false,
+      // NOTE: streamingCache is intentionally NOT cleared — background processes keep running
     });
     try {
       const [sessions, references] = await Promise.all([
@@ -267,8 +293,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   selectSession: async (id: string) => {
-    // Don't force isStreaming:false — the previous session's process keeps running
-    // The correct streaming state will be set after checking isSessionStreaming below
+    // Save current session's streaming state before switching
+    const { activeSessionId: prevSessionId, isStreaming: wasStreaming, streamingBlocks: prevBlocks } = get();
+    if (prevSessionId && wasStreaming && prevBlocks.length > 0) {
+      set((s) => ({
+        streamingCache: {
+          ...s.streamingCache,
+          [prevSessionId]: { blocks: prevBlocks, startTime: Date.now() },
+        },
+      }));
+    }
+
+    // Switch to new session — don't assume streaming state yet
     set({
       activeSessionId: id,
       messages: [],
@@ -305,35 +341,52 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         const streaming = await api.isSessionStreaming(id);
         if (streaming) {
-          // Get accumulated blocks from the buffer
-          const buffer = await api.getStreamingBuffer(id);
-          // Parse buffer into DisplayBlocks
-          const blocks: DisplayBlock[] = buffer.flatMap((contentArray: any) => {
-            if (!Array.isArray(contentArray)) return [];
-            return contentArray.map((block: any): DisplayBlock => {
-              if (block.type === 'thinking') {
-                return {
-                  type: 'thinking',
-                  content: block.thinking ?? block.content ?? '',
-                  chars: (block.thinking ?? block.content ?? '').length,
-                };
-              }
-              if (block.type === 'tool_use') {
-                const input = block.input ?? {};
-                return {
-                  type: 'tool_use',
-                  tool: block.name ?? 'unknown',
-                  path: input.file_path ?? input.path ?? input.filePath,
-                  command: input.command, input,
-                };
-              }
-              if (block.type === 'text') {
-                return { type: 'text', content: block.text ?? block.content ?? '' };
-              }
-              return { type: 'text', content: JSON.stringify(block) };
+          // First check our UI-side cache (has already-parsed DisplayBlocks)
+          const cached = get().streamingCache[id];
+          if (cached && cached.blocks.length > 0) {
+            set((s) => {
+              const { [id]: _, ...restCache } = s.streamingCache;
+              return { isStreaming: true, streamingBlocks: cached.blocks, streamingCache: restCache };
             });
-          });
-          set({ isStreaming: true, streamingBlocks: blocks });
+          } else {
+            // Fall back to Rust-side buffer
+            const buffer = await api.getStreamingBuffer(id);
+            const blocks: DisplayBlock[] = buffer.flatMap((contentArray: any) => {
+              if (!Array.isArray(contentArray)) return [];
+              return contentArray.map((block: any): DisplayBlock => {
+                if (block.type === 'thinking') {
+                  return {
+                    type: 'thinking',
+                    content: block.thinking ?? block.content ?? '',
+                    chars: (block.thinking ?? block.content ?? '').length,
+                  };
+                }
+                if (block.type === 'tool_use') {
+                  const input = block.input ?? {};
+                  return {
+                    type: 'tool_use',
+                    tool: block.name ?? 'unknown',
+                    path: input.file_path ?? input.path ?? input.filePath,
+                    command: input.command, input,
+                  };
+                }
+                if (block.type === 'text') {
+                  return { type: 'text', content: block.text ?? block.content ?? '' };
+                }
+                return { type: 'text', content: JSON.stringify(block) };
+              });
+            });
+            set({ isStreaming: true, streamingBlocks: blocks });
+          }
+        } else {
+          // Not streaming — clean up any stale cache entry
+          const cached = get().streamingCache[id];
+          if (cached) {
+            set((s) => {
+              const { [id]: _, ...restCache } = s.streamingCache;
+              return { streamingCache: restCache };
+            });
+          }
         }
       } catch {
         /* ignore */
@@ -470,13 +523,45 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   stopStreaming: async () => {
-    const { activeSessionId } = get();
+    const { activeSessionId, streamingBlocks } = get();
     if (!activeSessionId) return;
     try {
       await api.stopChat(activeSessionId);
-      set({ isStreaming: false });
     } catch (err) {
       console.error('Failed to stop chat:', err);
+    }
+
+    // Save whatever streaming blocks we have so far (don't lose them)
+    if (streamingBlocks.length > 0) {
+      const assistantMsg: DisplayMessage = {
+        id: crypto.randomUUID(),
+        session_id: activeSessionId,
+        role: 'assistant',
+        content: '',
+        blocks: streamingBlocks,
+        model: get().model,
+        cost: 0,
+        duration_ms: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      // Save to DB
+      api.saveMessage(
+        activeSessionId,
+        'assistant',
+        JSON.stringify(streamingBlocks),
+        get().model,
+        0,
+        0,
+      ).catch(console.error);
+
+      set((s) => ({
+        messages: [...s.messages, assistantMsg],
+        streamingBlocks: [],
+        isStreaming: false,
+      }));
+    } else {
+      set({ isStreaming: false });
     }
   },
 
@@ -486,18 +571,93 @@ export const useAppStore = create<AppState>((set, get) => ({
     const eventType: string = evt.event_type ?? evt.type ?? '';
     const data = evt.data ?? {};
     const eventSessionId = evt.session_id ?? '';
-
-    // Only process events for the active session (others run in background)
+    // Check if this event is for the active session or a background one
     const { activeSessionId } = get();
-    if (eventSessionId && activeSessionId && eventSessionId !== activeSessionId) {
-      // Event for a different session — ignore UI updates
-      // The Rust buffer still accumulates for when user switches back
-      return;
+    const isBackground = eventSessionId && activeSessionId && eventSessionId !== activeSessionId;
+
+    // For background sessions, handle caching of streaming data
+    if (isBackground) {
+      if (eventType === 'assistant') {
+        const content = data.content ?? [];
+        if (Array.isArray(content)) {
+          const newBlocks: DisplayBlock[] = content.map((block: any): DisplayBlock => {
+            if (block.type === 'thinking') {
+              return { type: 'thinking', content: block.thinking ?? block.content ?? '', chars: (block.thinking ?? block.content ?? '').length };
+            }
+            if (block.type === 'tool_use') {
+              const input = block.input ?? {};
+              return { type: 'tool_use', tool: block.name ?? 'unknown', path: input.file_path ?? input.path ?? input.filePath, command: input.command, input };
+            }
+            if (block.type === 'text') {
+              return { type: 'text', content: block.text ?? block.content ?? '' };
+            }
+            return { type: 'text', content: JSON.stringify(block) };
+          });
+          set((s) => {
+            const existing = s.streamingCache[eventSessionId] ?? { blocks: [], startTime: Date.now() };
+            return {
+              streamingCache: {
+                ...s.streamingCache,
+                [eventSessionId]: { blocks: [...existing.blocks, ...newBlocks], startTime: existing.startTime },
+              },
+            };
+          });
+        }
+      } else if (eventType === 'result') {
+        // Background session finished — save accumulated blocks to DB
+        const cached = get().streamingCache[eventSessionId];
+        let blocks = cached?.blocks ?? [];
+        const cost = data.total_cost_usd ?? 0;
+        const duration = data.duration_ms ?? 0;
+
+        // Include result text if present
+        const resultText = typeof data.result === 'string' ? data.result.trim() : '';
+        if (resultText) {
+          const hasText = blocks.some((b) => b.type === 'text' && b.content === resultText);
+          if (!hasText) {
+            blocks = [...blocks, { type: 'text', content: resultText }];
+          }
+        }
+
+        if (blocks.length > 0) {
+          api.saveMessage(
+            eventSessionId,
+            'assistant',
+            JSON.stringify(blocks),
+            get().model,
+            cost,
+            duration,
+          ).catch(console.error);
+        }
+
+        // Clean up cache entry
+        set((s) => {
+          const { [eventSessionId]: _, ...restCache } = s.streamingCache;
+          return { streamingCache: restCache };
+        });
+      }
+      // For system_init and other events in background, let them fall through to system_init handler
+      // since it writes settings (non-UI work) that should still happen
+      if (eventType !== 'system_init') return;
     }
 
     switch (eventType) {
       case 'system_init': {
-        // Store claude_session_id and extract init data for settings display
+        // Save the Claude CLI session ID back to DB so --resume works on next message
+        const claudeSessionId = data.session_id ?? data.sessionId ?? '';
+        if (claudeSessionId && eventSessionId) {
+          // Update the session record with the Claude CLI session ID
+          api.setSetting(`claude_sid_${eventSessionId}`, claudeSessionId).catch(() => {});
+          // Also update the sessions table directly
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('update_session_claude_id', {
+              sessionId: eventSessionId,
+              claudeSessionId,
+            }).catch(() => {});
+          });
+        }
+
+        // Extract init data for settings display
         const initData: AppState['claudeInitData'] = {
           tools: Array.isArray(data.tools) ? data.tools.map((t: any) => typeof t === 'string' ? t : (t.name ?? String(t))) : [],
           mcp_servers: Array.isArray(data.mcp_servers)
@@ -559,7 +719,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           return { type: 'text', content: JSON.stringify(block) };
         });
 
-        // Always append — Rust buffer is the authority, each event has new blocks
         set((s) => ({
           streamingBlocks: [...s.streamingBlocks, ...newBlocks],
           lastAssistantMsgId: msgId || s.lastAssistantMsgId,
@@ -568,7 +727,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       case 'result': {
-        // data has total_cost_usd, duration_ms, result, modelUsage, etc.
         const cost = data.total_cost_usd ?? 0;
         const duration = data.duration_ms ?? 0;
 
@@ -589,7 +747,18 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
 
-        const { streamingBlocks, activeSessionId } = get();
+        // Extract final text from result if present (some responses only have text in result)
+        let { streamingBlocks } = get();
+        const { activeSessionId } = get();
+        const resultText = typeof data.result === 'string' ? data.result.trim() : '';
+        if (resultText) {
+          // Check if the result text is already in a text block
+          const hasText = streamingBlocks.some((b) => b.type === 'text' && b.content === resultText);
+          if (!hasText) {
+            streamingBlocks = [...streamingBlocks, { type: 'text', content: resultText }];
+          }
+        }
+
         if (activeSessionId && streamingBlocks.length > 0) {
           const assistantMsg: DisplayMessage = {
             id: crypto.randomUUID(),
@@ -648,6 +817,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setLeftPanelWidth: (width) => set({ leftPanelWidth: width }),
   setRightPanelWidth: (width) => set({ rightPanelWidth: width }),
+  setLeftPanelVisible: (visible) => set({ leftPanelVisible: visible }),
+  setRightPanelVisible: (visible) => set({ rightPanelVisible: visible }),
+  toggleLeftPanel: () => set((s) => ({ leftPanelVisible: !s.leftPanelVisible })),
+  toggleRightPanel: () => set((s) => ({ rightPanelVisible: !s.rightPanelVisible })),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
 }));

@@ -225,8 +225,8 @@ impl ClaudeManager {
                     }
                 };
 
-                if let Some(evt) = event {
-                    let _ = app.emit("claude-event", &evt);
+                if let Some(ref evt) = event {
+                    let _ = app.emit("claude-event", evt);
                 }
             }
 

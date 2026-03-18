@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { LeftPanel } from './components/layout/LeftPanel';
 import { CenterPanel } from './components/layout/CenterPanel';
 import { RightPanel } from './components/layout/RightPanel';
+import { TopHeader } from './components/layout/TopHeader';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { useAppStore } from './stores/useAppStore';
 
@@ -11,6 +12,8 @@ export default function App() {
   const {
     leftPanelWidth,
     rightPanelWidth,
+    leftPanelVisible,
+    rightPanelVisible,
     settingsOpen,
     setLeftPanelWidth,
     setRightPanelWidth,
@@ -19,7 +22,6 @@ export default function App() {
   useEffect(() => {
     useAppStore.getState().init();
 
-    // Prevent browser default file open on drag/drop globally
     const preventDrop = (e: DragEvent) => { e.preventDefault(); };
     document.addEventListener('dragover', preventDrop);
     document.addEventListener('drop', preventDrop);
@@ -32,14 +34,18 @@ export default function App() {
   const dragTarget = useRef<DragTarget>(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+  const rafId = useRef(0);
 
   const onMouseDown = useCallback(
     (target: 'left' | 'right', e: React.MouseEvent) => {
       e.preventDefault();
       dragTarget.current = target;
       startX.current = e.clientX;
-      startWidth.current =
-        target === 'left' ? leftPanelWidth : rightPanelWidth;
+      // Read actual DOM width (not state) since we manipulate DOM directly during drag
+      const ref = target === 'left' ? leftRef.current : rightRef.current;
+      startWidth.current = ref ? ref.offsetWidth : (target === 'left' ? leftPanelWidth : rightPanelWidth);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
@@ -49,19 +55,35 @@ export default function App() {
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragTarget.current) return;
-      const delta = e.clientX - startX.current;
 
-      if (dragTarget.current === 'left') {
-        const next = Math.min(400, Math.max(200, startWidth.current + delta));
-        setLeftPanelWidth(next);
-      } else {
-        const next = Math.min(800, Math.max(260, startWidth.current - delta));
-        setRightPanelWidth(next);
-      }
+      // Use rAF to throttle DOM updates
+      cancelAnimationFrame(rafId.current);
+      rafId.current = requestAnimationFrame(() => {
+        const delta = e.clientX - startX.current;
+
+        if (dragTarget.current === 'left') {
+          const next = Math.min(400, Math.max(200, startWidth.current + delta));
+          // Direct DOM update during drag (no React re-render)
+          if (leftRef.current) leftRef.current.style.width = `${next}px`;
+        } else {
+          const next = Math.min(800, Math.max(260, startWidth.current - delta));
+          if (rightRef.current) rightRef.current.style.width = `${next}px`;
+        }
+      });
     };
 
-    const onMouseUp = () => {
+    const onMouseUp = (e: MouseEvent) => {
       if (dragTarget.current) {
+        cancelAnimationFrame(rafId.current);
+        // Commit final width to store on mouseup
+        const delta = e.clientX - startX.current;
+        if (dragTarget.current === 'left') {
+          const next = Math.min(400, Math.max(200, startWidth.current + delta));
+          setLeftPanelWidth(next);
+        } else {
+          const next = Math.min(800, Math.max(260, startWidth.current - delta));
+          setRightPanelWidth(next);
+        }
         dragTarget.current = null;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
@@ -79,43 +101,68 @@ export default function App() {
   return (
     <>
       {settingsOpen && <SettingsPanel />}
-      <div id="app-main" className="flex h-screen w-screen overflow-hidden" style={{ background: '#0A0A0A', borderRadius: 10 }}>
-        {/* left panel */}
-        <div
-          className="shrink-0 h-full overflow-hidden"
-          style={{ width: leftPanelWidth }}
-        >
-          <LeftPanel />
-        </div>
+      <div
+        id="app-main"
+        className="flex flex-col h-screen w-screen overflow-hidden"
+        style={{ background: '#1C1917', borderRadius: 10 }}
+      >
+        {/* Top header bar */}
+        <TopHeader />
 
-        {/* left resize handle */}
-        <div
-          onMouseDown={(e) => onMouseDown('left', e)}
-          className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
-          style={{ background: '#2a2a2a' }}
-        />
+        {/* Body: sidebar + center + right */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* left panel */}
+          {leftPanelVisible && (
+            <>
+              <div
+                ref={leftRef}
+                className="shrink-0 h-full overflow-hidden"
+                style={{ width: leftPanelWidth }}
+              >
+                <LeftPanel />
+              </div>
+              <div
+                onMouseDown={(e) => onMouseDown('left', e)}
+                className="shrink-0 cursor-col-resize group"
+                style={{ width: 1, position: 'relative', background: '#2A2520' }}
+              >
+                {/* Invisible wider hit area */}
+                <div style={{ position: 'absolute', inset: '-0 -4px', zIndex: 10 }} />
+                {/* Visible hover indicator */}
+                <div className="absolute inset-0 transition-colors duration-100 group-hover:bg-[#E5A54B]" />
+              </div>
+            </>
+          )}
 
-        {/* center panel */}
-        <div className="flex-1 h-full min-w-0 overflow-hidden">
-          <CenterPanel />
-        </div>
+          {/* center panel */}
+          <div className="flex-1 h-full min-w-0 overflow-hidden">
+            <CenterPanel />
+          </div>
 
-        {/* right resize handle */}
-        <div
-          onMouseDown={(e) => onMouseDown('right', e)}
-          className="w-[1px] shrink-0 cursor-col-resize hover:w-[3px] hover:bg-[#10B981] transition-all"
-          style={{ background: '#2a2a2a' }}
-        />
-
-        {/* right panel */}
-        <div
-          className="shrink-0 h-full overflow-hidden"
-          style={{ width: rightPanelWidth }}
-        >
-          <RightPanel />
+          {/* right panel */}
+          {rightPanelVisible && (
+            <>
+              <div
+                onMouseDown={(e) => onMouseDown('right', e)}
+                className="shrink-0 cursor-col-resize group"
+                style={{ width: 1, position: 'relative', background: '#2A2520' }}
+              >
+                {/* Invisible wider hit area */}
+                <div style={{ position: 'absolute', inset: '-0 -4px', zIndex: 10 }} />
+                {/* Visible hover indicator */}
+                <div className="absolute inset-0 transition-colors duration-100 group-hover:bg-[#E5A54B]" />
+              </div>
+              <div
+                ref={rightRef}
+                className="shrink-0 h-full overflow-hidden"
+                style={{ width: rightPanelWidth }}
+              >
+                <RightPanel />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
   );
 }
-

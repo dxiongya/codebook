@@ -336,7 +336,7 @@ fn import_cli_sessions(
     let content =
         std::fs::read_to_string(&history_path).map_err(|e| format!("Failed to read history.jsonl: {e}"))?;
 
-    // Parse each line and filter by project_path
+    // Parse each line from history.jsonl to find sessions for this project
     #[derive(serde::Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct HistoryEntry {
@@ -347,8 +347,8 @@ fn import_cli_sessions(
         session_id: Option<String>,
     }
 
-    // Collect matching entries grouped by sessionId
-    let mut session_map: std::collections::HashMap<String, Vec<HistoryEntry>> =
+    // Collect matching session IDs and their first display text from history.jsonl
+    let mut session_info: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
 
     for line in content.lines() {
@@ -372,10 +372,14 @@ fn import_cli_sessions(
             Some(s) => s.clone(),
             None => continue,
         };
-        session_map.entry(sid).or_default().push(entry);
+        // Only store the first display text per session (for the session name)
+        if !session_info.contains_key(&sid) {
+            let display = entry.display.unwrap_or_else(|| "CLI Session".to_string());
+            session_info.insert(sid, display);
+        }
     }
 
-    if session_map.is_empty() {
+    if session_info.is_empty() {
         return Ok(vec![]);
     }
 
@@ -391,22 +395,21 @@ fn import_cli_sessions(
         rows.filter_map(|r| r.ok()).collect()
     };
 
+    // Build the path to the conversation JSONL files:
+    // ~/.claude/projects/<encoded-project-path>/<session-id>.jsonl
+    // The project path is encoded by replacing '/' with '-'
+    let claude_projects_dir = home.join(".claude").join("projects");
+    let encoded_project = project_path.replace('/', "-");
+
     let mut imported: Vec<Session> = Vec::new();
 
-    for (claude_sid, mut entries) in session_map {
+    for (claude_sid, first_display) in &session_info {
         // Skip if already imported
-        if existing.contains(&claude_sid) {
+        if existing.contains(claude_sid) {
             continue;
         }
 
-        // Sort entries by timestamp
-        entries.sort_by_key(|e| e.timestamp.unwrap_or(0));
-
-        // Session name = first message truncated to 30 chars
-        let first_display = entries
-            .first()
-            .and_then(|e| e.display.as_deref())
-            .unwrap_or("CLI Session");
+        // Session name = first display text truncated to 30 chars
         let name: String = if first_display.len() > 30 {
             format!("{}...", &first_display[..30])
         } else {
@@ -425,18 +428,160 @@ fn import_cli_sessions(
             .map_err(|e| e.to_string())?;
         }
 
-        // Save each user message
-        for entry in &entries {
-            if let Some(display) = &entry.display {
-                let _ = db.0.save_message(&session_id, "user", display, None, None, None);
+        // Try to read the conversation JSONL file for full messages (user + assistant)
+        let conversation_path = claude_projects_dir
+            .join(&encoded_project)
+            .join(format!("{}.jsonl", claude_sid));
+
+        if conversation_path.exists() {
+            // Read conversation file and import both user and assistant messages
+            if let Ok(conv_content) = std::fs::read_to_string(&conversation_path) {
+                // Conversation entry structure from Claude CLI JSONL
+                #[derive(serde::Deserialize)]
+                struct ConvEntry {
+                    #[serde(rename = "type")]
+                    entry_type: Option<String>,
+                    message: Option<ConvMessage>,
+                    timestamp: Option<serde_json::Value>,
+                }
+
+                #[derive(serde::Deserialize)]
+                struct ConvMessage {
+                    role: Option<String>,
+                    content: Option<serde_json::Value>,
+                }
+
+                // Parsed message ready for DB insertion
+                struct ParsedMsg {
+                    role: String,
+                    content: String,
+                    timestamp: i64,
+                }
+
+                let mut messages: Vec<ParsedMsg> = Vec::new();
+                let mut msg_index: i64 = 0;
+
+                for conv_line in conv_content.lines() {
+                    let conv_line = conv_line.trim();
+                    if conv_line.is_empty() {
+                        continue;
+                    }
+                    let entry: ConvEntry = match serde_json::from_str(conv_line) {
+                        Ok(e) => e,
+                        Err(_) => continue,
+                    };
+
+                    // Only process user and assistant message types
+                    let entry_type = match &entry.entry_type {
+                        Some(t) => t.clone(),
+                        None => continue,
+                    };
+                    if entry_type != "user" && entry_type != "assistant" {
+                        continue;
+                    }
+
+                    let msg = match entry.message {
+                        Some(m) => m,
+                        None => continue,
+                    };
+
+                    let role = match &msg.role {
+                        Some(r) => r.clone(),
+                        None => continue,
+                    };
+                    if role != "user" && role != "assistant" {
+                        continue;
+                    }
+
+                    let content_val = match msg.content {
+                        Some(c) => c,
+                        None => continue,
+                    };
+
+                    // Extract timestamp for ordering (use numeric ms or index as fallback)
+                    let ts = match &entry.timestamp {
+                        Some(serde_json::Value::Number(n)) => {
+                            n.as_i64().unwrap_or(msg_index)
+                        }
+                        Some(serde_json::Value::String(s)) => {
+                            chrono::DateTime::parse_from_rfc3339(s)
+                                .map(|dt| dt.timestamp_millis())
+                                .unwrap_or(msg_index)
+                        }
+                        _ => msg_index,
+                    };
+                    msg_index += 1;
+
+                    // Build the content string based on role
+                    let content_str = match role.as_str() {
+                        "user" => {
+                            // For user messages: extract text from content
+                            match &content_val {
+                                serde_json::Value::String(s) => s.clone(),
+                                serde_json::Value::Array(arr) => {
+                                    let texts: Vec<String> = arr
+                                        .iter()
+                                        .filter_map(|block| {
+                                            if let Some(obj) = block.as_object() {
+                                                if obj.get("type").and_then(|t| t.as_str()) == Some("text") {
+                                                    return obj.get("text").and_then(|t| t.as_str()).map(|s| s.to_string());
+                                                }
+                                            }
+                                            None
+                                        })
+                                        .collect();
+                                    if texts.is_empty() {
+                                        continue;
+                                    }
+                                    texts.join("\n")
+                                }
+                                _ => continue,
+                            }
+                        }
+                        "assistant" => {
+                            // For assistant messages: serialize the full content blocks as JSON
+                            // This preserves thinking, tool_use, text blocks etc.
+                            serde_json::to_string(&content_val).unwrap_or_default()
+                        }
+                        _ => continue,
+                    };
+
+                    if content_str.is_empty() {
+                        continue;
+                    }
+
+                    messages.push(ParsedMsg {
+                        role,
+                        content: content_str,
+                        timestamp: ts,
+                    });
+                }
+
+                // Sort by timestamp to maintain chronological order
+                messages.sort_by_key(|m| m.timestamp);
+
+                // Save all messages in order
+                for msg in &messages {
+                    let _ = db.0.save_message(
+                        &session_id,
+                        &msg.role,
+                        &msg.content,
+                        None,
+                        None,
+                        None,
+                    );
+                }
             }
+        } else {
+            // Fallback: no conversation file found, save the display text as user message
+            let _ = db.0.save_message(&session_id, "user", first_display, None, None, None);
         }
 
         imported.push(Session {
-            id: session_id,
+            id: session_id.clone(),
             project_id: project_id.clone(),
-            name,
-            claude_session_id: Some(claude_sid),
+            name: name.clone(),
+            claude_session_id: Some(claude_sid.clone()),
             model: None,
             total_cost: None,
             created_at: now.clone(),
@@ -537,6 +682,21 @@ async fn send_chat_message(
 #[tauri::command]
 async fn stop_chat(claude: State<'_, ClaudeState>, session_id: String) -> Result<(), String> {
     claude.0.stop(&session_id).await
+}
+
+#[tauri::command]
+fn update_session_claude_id(
+    db: State<DbState>,
+    session_id: String,
+    claude_session_id: String,
+) -> Result<(), String> {
+    let conn = db.0.conn.lock().unwrap();
+    conn.execute(
+        "UPDATE sessions SET claude_session_id = ?1 WHERE id = ?2",
+        rusqlite::params![claude_session_id, session_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -671,6 +831,21 @@ fn git_push(project_path: String) -> Result<(), String> {
 #[tauri::command]
 fn git_branch(project_path: String) -> Result<String, String> {
     git::git_branch(&project_path)
+}
+
+#[tauri::command]
+fn git_list_branches(project_path: String) -> Result<Vec<String>, String> {
+    git::git_list_branches(&project_path)
+}
+
+#[tauri::command]
+fn git_checkout(project_path: String, branch: String) -> Result<String, String> {
+    git::git_checkout(&project_path, &branch)
+}
+
+#[tauri::command]
+fn discover_git_repos(project_path: String) -> Vec<git::GitRepo> {
+    git::discover_git_repos(&project_path)
 }
 
 // ---------------------------------------------------------------------------
@@ -863,6 +1038,35 @@ fn save_project_claude_config(
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – Global settings (read/write ~/.claude/settings.json)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+fn read_global_settings() -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let settings_path = home.join(".claude").join("settings.json");
+    if settings_path.exists() {
+        std::fs::read_to_string(&settings_path).map_err(|e| e.to_string())
+    } else {
+        Ok("{}".to_string())
+    }
+}
+
+#[tauri::command]
+fn save_global_settings(content: String) -> Result<(), String> {
+    // Validate JSON before writing
+    serde_json::from_str::<serde_json::Value>(&content)
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let claude_dir = home.join(".claude");
+    std::fs::create_dir_all(&claude_dir).map_err(|e| e.to_string())?;
+    let settings_path = claude_dir.join("settings.json");
+    std::fs::write(&settings_path, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // App entry point
 // ---------------------------------------------------------------------------
 
@@ -939,6 +1143,7 @@ pub fn run() {
             // Chat
             send_chat_message,
             stop_chat,
+            update_session_claude_id,
             is_session_streaming,
             get_streaming_buffer,
             // CLI import
@@ -952,6 +1157,9 @@ pub fn run() {
             save_pasted_image,
             // Claude CLI config
             get_claude_cli_config,
+            // Global settings (read/write ~/.claude/settings.json)
+            read_global_settings,
+            save_global_settings,
             // Project-level Claude config
             get_project_claude_config,
             save_project_claude_config,
@@ -966,6 +1174,9 @@ pub fn run() {
             git_commit,
             git_push,
             git_branch,
+            git_list_branches,
+            git_checkout,
+            discover_git_repos,
             // Remote access
             get_remote_info,
             start_remote_server,

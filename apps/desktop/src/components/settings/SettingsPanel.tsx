@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Editor } from '@monaco-editor/react';
 import { useAppStore } from '../../stores/useAppStore';
 import * as api from '../../lib/api';
+
+const beforeMount = (monaco: any) => {
+  monaco.editor.defineTheme('codebook-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [],
+    colors: {
+      'editor.background': '#1C1917',
+      'editor.lineHighlightBackground': '#1F1F1F',
+      'editorLineNumber.foreground': '#4B5563',
+      'editorGutter.background': '#1C1917',
+    },
+  });
+};
 
 // ---------- types ----------
 
@@ -49,7 +64,7 @@ const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
 
 function SectionHeader({ children }: { children: string }) {
   return (
-    <div style={{ color: '#6B7280', fontSize: 11, marginBottom: 12, marginTop: 20 }}>
+    <div style={{ color: '#6B6560', fontSize: 11, marginBottom: 12, marginTop: 20 }}>
       // {children}
     </div>
   );
@@ -73,19 +88,19 @@ function SelectInput({
           appearance: 'none',
           WebkitAppearance: 'none',
           padding: '6px 28px 6px 10px',
-          border: '1px solid #2a2a2a',
-          background: 'transparent',
-          color: '#FAFAFA',
+          border: '1px solid #2A2520',
+          background: '#262220',
+          color: '#E8E4E0',
           fontSize: 13,
           fontFamily: 'inherit',
           cursor: 'pointer',
           outline: 'none',
-          borderRadius: 0,
+          borderRadius: 6,
           minWidth: 180,
         }}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value} style={{ background: '#0F0F0F' }}>
+          <option key={opt.value} value={opt.value} style={{ background: '#1C1917' }}>
             {opt.label}
           </option>
         ))}
@@ -96,7 +111,7 @@ function SelectInput({
           right: 8,
           top: '50%',
           transform: 'translateY(-50%)',
-          color: '#6B7280',
+          color: '#6B6560',
           fontSize: 10,
           pointerEvents: 'none',
         }}
@@ -124,10 +139,10 @@ function ToggleButtons({
           onClick={() => onChange(opt)}
           style={{
             padding: '6px 14px',
-            border: '1px solid #2a2a2a',
+            border: '1px solid #2A2520',
             borderRight: 'none',
-            background: value === opt ? '#10B981' : 'transparent',
-            color: value === opt ? '#0A0A0A' : '#9CA3AF',
+            background: value === opt ? '#E5A54B' : '#262220',
+            color: value === opt ? '#1C1917' : '#9C9690',
             fontSize: 12,
             fontWeight: value === opt ? 600 : 400,
             fontFamily: 'inherit',
@@ -139,7 +154,7 @@ function ToggleButtons({
         </button>
       ))}
       {/* Close the last border */}
-      <div style={{ width: 1, background: '#2a2a2a' }} />
+      <div style={{ width: 1, background: '#2A2520' }} />
     </div>
   );
 }
@@ -163,13 +178,13 @@ function TextInput({
       placeholder={placeholder}
       style={{
         padding: '6px 10px',
-        border: '1px solid #2a2a2a',
-        background: 'transparent',
-        color: '#FAFAFA',
+        border: '1px solid #2A2520',
+        background: '#262220',
+        color: '#E8E4E0',
         fontSize: 13,
         fontFamily: 'inherit',
         outline: 'none',
-        borderRadius: 0,
+        borderRadius: 6,
         width: width ?? 180,
       }}
     />
@@ -193,13 +208,13 @@ function TextAreaInput({
       rows={4}
       style={{
         padding: '8px 10px',
-        border: '1px solid #2a2a2a',
-        background: 'transparent',
-        color: '#FAFAFA',
+        border: '1px solid #2A2520',
+        background: '#262220',
+        color: '#E8E4E0',
         fontSize: 13,
         fontFamily: 'inherit',
         outline: 'none',
-        borderRadius: 0,
+        borderRadius: 6,
         width: '100%',
         maxWidth: 400,
         resize: 'vertical',
@@ -224,6 +239,10 @@ function ClaudeCodeSection() {
   const [fsPlugins, setFsPlugins] = useState<{ name: string; version: string; scope: string }[]>([]);
   const [fsSkills, setFsSkills] = useState<string[]>([]);
   const [_fsMcpServers, setFsMcpServers] = useState<Record<string, any>>({});
+  const [globalSettingsJson, setGlobalSettingsJson] = useState<string | null>(null);
+  const [globalSettingsLoading, setGlobalSettingsLoading] = useState(false);
+  const [globalSettingsSaving, setGlobalSettingsSaving] = useState(false);
+  const [globalSettingsSaveStatus, setGlobalSettingsSaveStatus] = useState<string | null>(null);
 
   // Load settings + filesystem data on mount
   useEffect(() => {
@@ -247,6 +266,12 @@ function ClaudeCodeSection() {
         setFsPlugins(config.plugins);
         setFsSkills(config.skills);
         setFsMcpServers(config.mcp_servers);
+      } catch { /* ignore */ }
+
+      // Load global settings.json for editor
+      try {
+        const raw = await api.readGlobalSettings();
+        setGlobalSettingsJson(raw);
       } catch { /* ignore */ }
     };
     load();
@@ -283,12 +308,37 @@ function ClaudeCodeSection() {
     saveSetting('claude_system_prompt', v);
   };
 
+  const handleLoadGlobalSettings = async () => {
+    setGlobalSettingsLoading(true);
+    try {
+      const raw = await api.readGlobalSettings();
+      setGlobalSettingsJson(raw);
+    } catch (err) {
+      setGlobalSettingsJson('{}');
+    }
+    setGlobalSettingsLoading(false);
+  };
+
+  const handleSaveGlobalSettings = async () => {
+    if (globalSettingsJson === null) return;
+    setGlobalSettingsSaving(true);
+    setGlobalSettingsSaveStatus(null);
+    try {
+      await api.saveGlobalSettings(globalSettingsJson);
+      setGlobalSettingsSaveStatus('saved');
+    } catch (err: any) {
+      setGlobalSettingsSaveStatus(err?.toString() ?? 'Failed to save');
+    }
+    setGlobalSettingsSaving(false);
+    setTimeout(() => setGlobalSettingsSaveStatus(null), 3000);
+  };
+
   return (
     <div>
-      <div style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         claude code
       </div>
-      <div style={{ width: 200, height: 1, background: '#2a2a2a', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
 
       <SectionHeader>model</SectionHeader>
       <SelectInput value={model} onChange={handleModelChange} options={MODELS} />
@@ -318,9 +368,98 @@ function ClaudeCodeSection() {
         placeholder="appended to default system prompt..."
       />
 
+      <SectionHeader>global settings</SectionHeader>
+      <div style={{ color: '#9C9690', fontSize: 12, marginBottom: 8 }}>
+        ~/.claude/settings.json
+      </div>
+      {globalSettingsJson === null ? (
+        <button
+          onClick={handleLoadGlobalSettings}
+          disabled={globalSettingsLoading}
+          style={{
+            padding: '6px 16px',
+            border: '1px solid #2A2520',
+            background: '#262220',
+            color: '#E5A54B',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            cursor: globalSettingsLoading ? 'wait' : 'pointer',
+            borderRadius: 6,
+            opacity: globalSettingsLoading ? 0.5 : 1,
+          }}
+        >
+          {globalSettingsLoading ? 'Loading...' : 'Open settings.json'}
+        </button>
+      ) : (
+        <div style={{ maxWidth: 500 }}>
+          <div
+            style={{
+              border: '1px solid #2A2520',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <Editor
+              height={250}
+              language="json"
+              theme="codebook-dark"
+              beforeMount={beforeMount}
+              value={globalSettingsJson}
+              onChange={(value) => setGlobalSettingsJson(value ?? '{}')}
+              options={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                lineHeight: 20,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                overviewRulerLanes: 0,
+                scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
+                glyphMargin: false,
+                folding: true,
+                lineDecorationsWidth: 0,
+                lineNumbersMinChars: 3,
+                renderLineHighlight: 'line',
+                tabSize: 2,
+                automaticLayout: true,
+              }}
+            />
+          </div>
+          <div className="flex items-center" style={{ gap: 10, marginTop: 8 }}>
+            <button
+              onClick={handleSaveGlobalSettings}
+              disabled={globalSettingsSaving}
+              style={{
+                padding: '6px 20px',
+                border: '1px solid #2A2520',
+                background: '#E5A54B',
+                color: '#1C1917',
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: 'inherit',
+                cursor: globalSettingsSaving ? 'wait' : 'pointer',
+                borderRadius: 6,
+                opacity: globalSettingsSaving ? 0.5 : 1,
+              }}
+            >
+              {globalSettingsSaving ? 'Saving...' : 'Save'}
+            </button>
+            {globalSettingsSaveStatus && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: globalSettingsSaveStatus === 'saved' ? '#10B981' : '#EF4444',
+                }}
+              >
+                {globalSettingsSaveStatus === 'saved' ? 'Saved successfully' : globalSettingsSaveStatus}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       <SectionHeader>plugins</SectionHeader>
       {fsPlugins.length > 0 ? (
-        <div style={{ border: '1px solid #2a2a2a', maxWidth: 400 }}>
+        <div style={{ border: '1px solid #2A2520', maxWidth: 400 }}>
           {fsPlugins.map((p, i) => (
             <div
               key={i}
@@ -328,24 +467,24 @@ function ClaudeCodeSection() {
               style={{
                 padding: '8px 12px',
                 gap: 8,
-                borderBottom: i < fsPlugins.length - 1 ? '1px solid #1a1a1a' : 'none',
+                borderBottom: i < fsPlugins.length - 1 ? '1px solid #2A2520' : 'none',
               }}
             >
               <div className="flex items-center" style={{ gap: 8 }}>
                 <span style={{ color: '#10B981', fontSize: 12 }}>&#10003;</span>
-                <span style={{ color: '#FAFAFA', fontSize: 12 }}>{p.name}</span>
+                <span style={{ color: '#E8E4E0', fontSize: 12 }}>{p.name}</span>
               </div>
-              <span style={{ color: '#4B5563', fontSize: 10 }}>v{p.version} · {p.scope}</span>
+              <span style={{ color: '#6B6560', fontSize: 10 }}>v{p.version} · {p.scope}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no plugins installed</div>
+        <div style={{ color: '#6B6560', fontSize: 12 }}>no plugins installed</div>
       )}
 
       <SectionHeader>mcp servers</SectionHeader>
       {claudeInitData?.mcp_servers && claudeInitData.mcp_servers.length > 0 ? (
-        <div style={{ border: '1px solid #2a2a2a', maxWidth: 400 }}>
+        <div style={{ border: '1px solid #2A2520', maxWidth: 400 }}>
           {claudeInitData.mcp_servers.map((s, i) => (
             <div
               key={i}
@@ -354,7 +493,7 @@ function ClaudeCodeSection() {
                 padding: '8px 12px',
                 gap: 8,
                 borderBottom:
-                  i < claudeInitData.mcp_servers.length - 1 ? '1px solid #1a1a1a' : 'none',
+                  i < claudeInitData.mcp_servers.length - 1 ? '1px solid #2A2520' : 'none',
               }}
             >
               <span
@@ -362,12 +501,12 @@ function ClaudeCodeSection() {
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: s.status === 'connected' ? '#10B981' : '#4B5563',
-                  border: s.status === 'connected' ? 'none' : '1px solid #6B7280',
+                  background: s.status === 'connected' ? '#10B981' : '#6B6560',
+                  border: s.status === 'connected' ? 'none' : '1px solid #6B6560',
                   flexShrink: 0,
                 }}
               />
-              <span style={{ color: '#FAFAFA', fontSize: 12, flex: 1 }}>{s.name}</span>
+              <span style={{ color: '#E8E4E0', fontSize: 12, flex: 1 }}>{s.name}</span>
               <span
                 style={{
                   color: s.status === 'connected' ? '#10B981' : '#F59E0B',
@@ -380,7 +519,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no mcp servers detected</div>
+        <div style={{ color: '#6B6560', fontSize: 12 }}>no mcp servers detected</div>
       )}
 
       <SectionHeader>allowed tools</SectionHeader>
@@ -391,8 +530,8 @@ function ClaudeCodeSection() {
               key={tool}
               style={{
                 padding: '4px 10px',
-                border: '1px solid #2a2a2a',
-                color: '#FAFAFA',
+                border: '1px solid #2A2520',
+                color: '#E8E4E0',
                 fontSize: 11,
                 background: 'transparent',
               }}
@@ -402,7 +541,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no tools data yet -- send a message first</div>
+        <div style={{ color: '#6B6560', fontSize: 12 }}>no tools data yet -- send a message first</div>
       )}
 
       <SectionHeader>skills</SectionHeader>
@@ -424,7 +563,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no skills data yet</div>
+        <div style={{ color: '#6B6560', fontSize: 12 }}>no skills data yet</div>
       )}
 
       <SectionHeader>agents</SectionHeader>
@@ -446,7 +585,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#4B5563', fontSize: 12 }}>no agents data yet</div>
+        <div style={{ color: '#6B6560', fontSize: 12 }}>no agents data yet</div>
       )}
 
       <SectionHeader>permission mode</SectionHeader>
@@ -461,14 +600,14 @@ function ClaudeCodeSection() {
 function CodexSection() {
   return (
     <div>
-      <div style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         codex
       </div>
-      <div style={{ width: 200, height: 1, background: '#2a2a2a', marginBottom: 16 }} />
-      <div style={{ color: '#6B7280', fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 16 }} />
+      <div style={{ color: '#6B6560', fontSize: 13, lineHeight: 1.6 }}>
         codex cli -- coming soon
       </div>
-      <div style={{ color: '#4B5563', fontSize: 12, marginTop: 8, lineHeight: 1.5, maxWidth: 400 }}>
+      <div style={{ color: '#6B6560', fontSize: 12, marginTop: 8, lineHeight: 1.5, maxWidth: 400 }}>
         OpenAI Codex CLI integration will allow you to use Codex as an alternative coding assistant
         alongside Claude Code. Configuration options will mirror the Claude Code section.
       </div>
@@ -517,10 +656,10 @@ function RemoteSection() {
 
   return (
     <div>
-      <div style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         remote access
       </div>
-      <div style={{ width: 200, height: 1, background: '#2a2a2a', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
 
       <SectionHeader>status</SectionHeader>
       <div className="flex items-center" style={{ gap: 8 }}>
@@ -529,17 +668,17 @@ function RemoteSection() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: remoteInfo?.running ? '#10B981' : '#4B5563',
+            background: remoteInfo?.running ? '#10B981' : '#6B6560',
             flexShrink: 0,
           }}
         />
-        <span style={{ color: remoteInfo?.running ? '#10B981' : '#9CA3AF', fontSize: 13 }}>
+        <span style={{ color: remoteInfo?.running ? '#10B981' : '#9C9690', fontSize: 13 }}>
           {remoteInfo?.running ? 'running' : 'stopped'}
         </span>
       </div>
 
       <SectionHeader>port</SectionHeader>
-      <span style={{ color: '#FAFAFA', fontSize: 13 }}>
+      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
         {remoteInfo?.port ?? 19876}
       </span>
 
@@ -547,17 +686,17 @@ function RemoteSection() {
       {remoteInfo?.ips && remoteInfo.ips.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {remoteInfo.ips.map((ip) => (
-            <span key={ip} style={{ color: '#FAFAFA', fontSize: 13 }}>
+            <span key={ip} style={{ color: '#E8E4E0', fontSize: 13 }}>
               {ip}:{remoteInfo.port ?? 19876}
             </span>
           ))}
         </div>
       ) : (
-        <span style={{ color: '#4B5563', fontSize: 12 }}>no network interfaces</span>
+        <span style={{ color: '#6B6560', fontSize: 12 }}>no network interfaces</span>
       )}
 
       <SectionHeader>connected clients</SectionHeader>
-      <span style={{ color: '#FAFAFA', fontSize: 13 }}>
+      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
         {remoteInfo?.client_count ?? 0}
       </span>
 
@@ -567,14 +706,14 @@ function RemoteSection() {
           disabled={loading || !remoteInfo}
           style={{
             padding: '8px 20px',
-            border: '1px solid #2a2a2a',
-            background: remoteInfo?.running ? 'transparent' : '#10B981',
-            color: remoteInfo?.running ? '#9CA3AF' : '#0A0A0A',
+            border: '1px solid #2A2520',
+            background: remoteInfo?.running ? 'transparent' : '#E5A54B',
+            color: remoteInfo?.running ? '#9C9690' : '#1C1917',
             fontSize: 12,
             fontWeight: 500,
             fontFamily: 'inherit',
             cursor: loading ? 'wait' : 'pointer',
-            borderRadius: 0,
+            borderRadius: 6,
             opacity: loading ? 0.5 : 1,
           }}
         >
@@ -613,10 +752,10 @@ function DisplaySection() {
 
   return (
     <div>
-      <div style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         display
       </div>
-      <div style={{ width: 200, height: 1, background: '#2a2a2a', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
 
       <SectionHeader>font size</SectionHeader>
       <div className="flex items-center" style={{ gap: 12 }}>
@@ -628,11 +767,11 @@ function DisplaySection() {
           onChange={(e) => handleFontSizeChange(parseInt(e.target.value, 10))}
           style={{
             width: 160,
-            accentColor: '#10B981',
+            accentColor: '#E5A54B',
             cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#FAFAFA', fontSize: 13 }}>{fontSize}px</span>
+        <span style={{ color: '#E8E4E0', fontSize: 13 }}>{fontSize}px</span>
       </div>
 
       <SectionHeader>theme</SectionHeader>
@@ -641,12 +780,12 @@ function DisplaySection() {
           style={{
             width: 16,
             height: 16,
-            background: '#0A0A0A',
-            border: '1px solid #2a2a2a',
+            background: '#1C1917',
+            border: '1px solid #2A2520',
           }}
         />
-        <span style={{ color: '#FAFAFA', fontSize: 13 }}>dark</span>
-        <span style={{ color: '#4B5563', fontSize: 11 }}>(only theme)</span>
+        <span style={{ color: '#E8E4E0', fontSize: 13 }}>dark</span>
+        <span style={{ color: '#6B6560', fontSize: 11 }}>(only theme)</span>
       </div>
     </div>
   );
@@ -657,16 +796,16 @@ function AboutSection() {
 
   return (
     <div>
-      <div style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         about
       </div>
-      <div style={{ width: 200, height: 1, background: '#2a2a2a', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
 
       <SectionHeader>version</SectionHeader>
-      <span style={{ color: '#FAFAFA', fontSize: 13 }}>v0.1.0</span>
+      <span style={{ color: '#E8E4E0', fontSize: 13 }}>v0.1.0</span>
 
       <SectionHeader>claude cli version</SectionHeader>
-      <span style={{ color: '#FAFAFA', fontSize: 13 }}>
+      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
         {claudeInitData?.claude_code_version ?? 'unknown -- send a message to detect'}
       </span>
 
@@ -675,7 +814,7 @@ function AboutSection() {
         href="https://github.com"
         target="_blank"
         rel="noopener noreferrer"
-        style={{ color: '#06B6D4', fontSize: 13, textDecoration: 'none' }}
+        style={{ color: '#E5A54B', fontSize: 13, textDecoration: 'none' }}
       >
         github repo
       </a>
@@ -724,103 +863,123 @@ export function SettingsPanel() {
 
   return (
     <div
+      onClick={() => setSettingsOpen(false)}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
-        background: '#0A0A0A',
+        zIndex: 1000,
+        background: 'rgba(0,0,0,0.5)',
         display: 'flex',
-        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      {/* header */}
+      {/* modal */}
       <div
-        className="flex items-center justify-between shrink-0"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          padding: '14px 24px',
-          borderBottom: '1px solid #2a2a2a',
+          width: 800,
+          maxWidth: '90vw',
+          height: 600,
+          maxHeight: '85vh',
+          background: '#1C1917',
+          border: '1px solid #2A2520',
+          borderRadius: 10,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <span style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 700 }}>
-          $ settings
-        </span>
-        <button
-          onClick={() => setSettingsOpen(false)}
-          style={{
-            background: 'transparent',
-            border: '1px solid #2a2a2a',
-            color: '#6B7280',
-            fontSize: 12,
-            fontFamily: 'inherit',
-            padding: '4px 10px',
-            cursor: 'pointer',
-            borderRadius: 0,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
-        >
-          esc
-        </button>
-      </div>
-
-      {/* body: nav + content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* left nav */}
+        {/* header */}
         <div
-          className="shrink-0 overflow-y-auto"
+          className="flex items-center justify-between shrink-0"
           style={{
-            width: 200,
-            background: '#0F0F0F',
-            borderRight: '1px solid #2a2a2a',
-            padding: '16px 0',
+            padding: '12px 20px',
+            borderBottom: '1px solid #2A2520',
           }}
         >
-          {Object.entries(groups).map(([group, items]) => (
-            <div key={group} style={{ marginBottom: 12 }}>
-              <div style={{ padding: '6px 20px', color: '#6B7280', fontSize: 11 }}>
-                // {group}
-              </div>
-              {items.map((item) => {
-                const isActive = activeSection === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveSection(item.id)}
-                    className="w-full text-left flex items-center"
-                    style={{
-                      padding: '8px 20px',
-                      gap: 8,
-                      background: 'transparent',
-                      border: 'none',
-                      borderLeft: isActive ? '2px solid #10B981' : '2px solid transparent',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    <span style={{ color: isActive ? '#10B981' : '#6B7280', fontSize: 11 }}>
-                      {'\u00B7'}
-                    </span>
-                    <span
-                      style={{
-                        color: isActive ? '#10B981' : '#9CA3AF',
-                        fontSize: 13,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          <span style={{ color: '#E8E4E0', fontSize: 14, fontWeight: 700 }}>
+            Settings
+          </span>
+          <button
+            onClick={() => setSettingsOpen(false)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#6B6560',
+              fontSize: 18,
+              fontFamily: 'inherit',
+              padding: '2px 6px',
+              cursor: 'pointer',
+              borderRadius: 6,
+              lineHeight: 1,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#E8E4E0')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+          >
+            ×
+          </button>
         </div>
 
-        {/* right content */}
-        <div
-          className="flex-1 overflow-y-auto"
-          style={{ padding: '24px 40px' }}
-        >
-          {renderContent()}
+        {/* body: nav + content */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* left nav */}
+          <div
+            className="shrink-0 overflow-y-auto"
+            style={{
+              width: 200,
+              background: '#1C1917',
+              borderRight: '1px solid #2A2520',
+              padding: '16px 0',
+            }}
+          >
+            {Object.entries(groups).map(([group, items]) => (
+              <div key={group} style={{ marginBottom: 12 }}>
+                <div style={{ padding: '6px 20px', color: '#6B6560', fontSize: 11 }}>
+                  // {group}
+                </div>
+                {items.map((item) => {
+                  const isActive = activeSection === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveSection(item.id)}
+                      className="w-full text-left flex items-center"
+                      style={{
+                        padding: '8px 20px',
+                        gap: 8,
+                        background: isActive ? '#262220' : 'transparent',
+                        border: 'none',
+                        borderLeft: isActive ? '2px solid #E5A54B' : '2px solid transparent',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <span style={{ color: isActive ? '#E5A54B' : '#6B6560', fontSize: 11 }}>
+                        {'\u00B7'}
+                      </span>
+                      <span
+                        style={{
+                          color: isActive ? '#E5A54B' : '#9C9690',
+                          fontSize: 13,
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* right content */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ padding: '24px 32px' }}
+          >
+            {renderContent()}
+          </div>
         </div>
       </div>
     </div>

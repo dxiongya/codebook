@@ -7,18 +7,69 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { open } from '@tauri-apps/plugin-dialog';
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Sparkles, Brain, Terminal, Pencil, Eye, Search, ChevronDown, History, CirclePlus, Image, Send, Plug, Wrench } from 'lucide-react';
 
 /* ── sub-components ────────────────────────────────────────── */
 
-// Timeline icon for tool types
-function toolIcon(tool: string): { icon: string; color: string } {
+const ICON_SIZE = 13;
+
+function StreamTimer() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return (
+    <span style={{ color: '#6B6560', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+      {m > 0 ? `${m}m ${s}s` : `${s}s`}
+    </span>
+  );
+}
+const ICON_STYLE = { flexShrink: 0 } as const;
+
+// Color per tool type — icon and name share the same color
+function toolColor(tool: string): string {
   const t = tool.toLowerCase();
-  if (t === 'edit' || t === 'write') return { icon: '✎', color: '#10B981' };
-  if (t === 'bash') return { icon: '⬚', color: '#06B6D4' };
-  if (t === 'read') return { icon: '◉', color: '#6B7280' };
-  if (t === 'glob' || t === 'grep') return { icon: '⊕', color: '#6B7280' };
-  return { icon: '◆', color: '#6B7280' };
+  if (t === 'edit' || t === 'write') return '#D4915E';     // warm orange
+  if (t === 'bash') return '#5B9FD4';                       // ocean blue
+  if (t === 'read') return '#6DA88C';                       // sage green
+  if (t === 'glob' || t === 'grep') return '#6DA88C';       // sage green
+  if (t.startsWith('mcp_') || t.startsWith('mcp__')) return '#9B8EC4'; // lavender
+  if (t === 'agent') return '#C47A9B';                      // rose
+  if (t === 'toolsearch' || t === 'todowrite' || t === 'todoread') return '#C47A9B'; // rose
+  return '#8A9AA5';                                         // slate
+}
+
+function ToolIcon({ tool }: { tool: string }) {
+  const color = toolColor(tool);
+  const t = tool.toLowerCase();
+  if (t === 'edit' || t === 'write') return <Pencil size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+  if (t === 'bash') return <Terminal size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+  if (t === 'read') return <Eye size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+  if (t === 'glob' || t === 'grep') return <Search size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+  if (t.startsWith('mcp_') || t.startsWith('mcp__')) return <Plug size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+  return <Wrench size={ICON_SIZE} style={{ ...ICON_STYLE, color }} />;
+}
+
+function toolDisplayName(tool: string): string {
+  const t = tool.toLowerCase();
+  if (t === 'edit' || t === 'write') return 'Apply Patch';
+  if (t === 'bash') return 'Shell Command';
+  if (t === 'read') return 'Read File';
+  if (t === 'glob' || t === 'grep') return 'Search';
+  // MCP tools: show server + method
+  if (t.startsWith('mcp__')) {
+    const parts = tool.replace(/^mcp__/, '').split('__');
+    if (parts.length >= 2) return `${parts[0]}:${parts.slice(1).join('.')}`;
+    return parts[0];
+  }
+  if (t.startsWith('mcp_')) {
+    return tool.replace(/^mcp_/, '');
+  }
+  return tool;
 }
 
 function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
@@ -28,20 +79,20 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
 
   return (
     <div
-      className="flex items-start"
+      className="flex items-center"
       onClick={() => setExpanded(!expanded)}
-      style={{ cursor: 'pointer', gap: 8, padding: '5px 0' }}
+      style={{ cursor: 'pointer', gap: 8, padding: '4px 0', paddingLeft: 0, marginLeft: 0 }}
     >
       {/* timeline dot */}
-      <span style={{ color: '#a78bfa', fontSize: 13, lineHeight: '20px', flexShrink: 0, width: 18, textAlign: 'center' }}>⊙</span>
+      <Brain size={ICON_SIZE} style={{ color: '#8B7BC8', flexShrink: 0 }} />
       {/* content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="flex items-center" style={{ gap: 8, lineHeight: '20px' }}>
-          <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 600 }}>Thinking</span>
-          <span style={{ color: '#6B7280', fontSize: 12, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <div className="flex items-center" style={{ gap: 6, lineHeight: '18px' }}>
+          <span style={{ color: '#8B7BC8', fontSize: 11, fontWeight: 400 }}>Thinking</span>
+          <span style={{ color: '#6B6560', fontSize: 11, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {summary ? `**${summary}**` : ''}
           </span>
-          <span style={{ color: '#4B5563', fontSize: 11, flexShrink: 0 }}>
+          <span style={{ color: '#6B6560', fontSize: 10, flexShrink: 0 }}>
             {block.chars > 1000 ? `${(block.chars / 1000).toFixed(1)}k` : block.chars} chars
           </span>
         </div>
@@ -49,9 +100,10 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
           <div style={{
             marginTop: 6,
             padding: '10px 12px',
-            background: '#1a1825',
-            border: '1px solid #2a2040',
-            color: '#c4b5fd',
+            background: '#262220',
+            border: '1px solid #2A2520',
+            borderRadius: 6,
+            color: '#C8C4BE',
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
@@ -70,7 +122,6 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
 function ToolBlockView({ block }: { block: DisplayToolBlock }) {
   const [expanded, setExpanded] = useState(false);
   const hasDetails = block.input && Object.keys(block.input).length > 0;
-  const { icon, color } = toolIcon(block.tool);
 
   // Build description
   const desc = block.path || block.command || '';
@@ -80,22 +131,22 @@ function ToolBlockView({ block }: { block: DisplayToolBlock }) {
 
   return (
     <div
-      className="flex items-start"
+      className="flex items-center"
       onClick={() => hasDetails && setExpanded(!expanded)}
-      style={{ cursor: hasDetails ? 'pointer' : 'default', gap: 8, padding: '5px 0' }}
+      style={{ cursor: hasDetails ? 'pointer' : 'default', gap: 8, padding: '4px 0', paddingLeft: 0, marginLeft: 0 }}
     >
       {/* timeline dot */}
-      <span style={{ color, fontSize: 13, lineHeight: '20px', flexShrink: 0, width: 18, textAlign: 'center' }}>{icon}</span>
+      <ToolIcon tool={block.tool} />
       {/* content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="flex items-center" style={{ gap: 8, lineHeight: '20px' }}>
-          <span style={{ color: '#FAFAFA', fontSize: 13, fontWeight: 600 }}>{block.tool}</span>
-          <span style={{ color: '#9CA3AF', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        <div className="flex items-center" style={{ gap: 6, lineHeight: '18px' }}>
+          <span style={{ color: toolColor(block.tool), fontSize: 11, fontWeight: 400 }}>{toolDisplayName(block.tool)}</span>
+          <span style={{ color: '#6B6560', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {desc}
           </span>
           {diffInfo && (
             <span style={{ fontSize: 11, flexShrink: 0 }}>
-              <span style={{ color: '#10B981' }}>{diffInfo.split(' ')[0]}</span>
+              <span style={{ color: '#4ADE80' }}>{diffInfo.split(' ')[0]}</span>
               {diffInfo.includes('-') && <span style={{ color: '#EF4444' }}> {diffInfo.split(' ')[1]}</span>}
             </span>
           )}
@@ -106,6 +157,7 @@ function ToolBlockView({ block }: { block: DisplayToolBlock }) {
             padding: '10px 12px',
             background: '#0a1a0f',
             border: '1px solid #1a2a1a',
+            borderRadius: 6,
             fontSize: 11,
             fontFamily: "'JetBrains Mono', monospace",
             color: '#86efac',
@@ -133,22 +185,23 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
         rehypePlugins={[rehypeHighlight]}
         components={{
           p: ({ children }) => (
-            <p style={{ color: '#FAFAFA', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>{children}</p>
+            <p style={{ color: '#C8C4BE', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>{children}</p>
           ),
           strong: ({ children }) => (
-            <strong style={{ color: '#FAFAFA', fontWeight: 600 }}>{children}</strong>
+            <strong style={{ color: '#E8E4E0', fontWeight: 600 }}>{children}</strong>
           ),
           em: ({ children }) => (
-            <em style={{ color: '#9CA3AF' }}>{children}</em>
+            <em style={{ color: '#9C9690' }}>{children}</em>
           ),
           code: ({ className, children, ...props }) => {
             const isInline = !className;
             if (isInline) {
               return (
                 <code style={{
-                  background: '#1F1F1F',
-                  color: '#06B6D4',
+                  background: '#262220',
+                  color: '#60A5FA',
                   padding: '2px 6px',
+                  borderRadius: 4,
                   fontSize: 12,
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>{children}</code>
@@ -162,8 +215,9 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
           },
           pre: ({ children }) => (
             <pre style={{
-              background: '#0F0F0F',
-              border: '1px solid #2a2a2a',
+              background: '#171412',
+              border: '1px solid #2A2520',
+              borderRadius: 6,
               padding: '12px 16px',
               margin: '8px 0',
               overflow: 'auto',
@@ -173,42 +227,42 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
             }}>{children}</pre>
           ),
           ul: ({ children }) => (
-            <ul style={{ paddingLeft: 16, margin: '6px 0', color: '#FAFAFA', fontSize: 13, lineHeight: 1.6 }}>{children}</ul>
+            <ul style={{ paddingLeft: 20, margin: '6px 0', color: '#9C9690', fontSize: 13, lineHeight: 1.6, listStyleType: 'disc' }}>{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol style={{ paddingLeft: 16, margin: '6px 0', color: '#FAFAFA', fontSize: 13, lineHeight: 1.6 }}>{children}</ol>
+            <ol style={{ paddingLeft: 20, margin: '6px 0', color: '#9C9690', fontSize: 13, lineHeight: 1.6, listStyleType: 'decimal' }}>{children}</ol>
           ),
           li: ({ children }) => (
-            <li style={{ marginBottom: 4, color: '#FAFAFA' }}>{children}</li>
+            <li style={{ marginBottom: 4, color: '#C8C4BE' }}>{children}</li>
           ),
           h1: ({ children }) => (
-            <h1 style={{ color: '#FAFAFA', fontSize: 18, fontWeight: 700, marginBottom: 8, marginTop: 16 }}>{children}</h1>
+            <h1 style={{ color: '#E8E4E0', fontSize: 18, fontWeight: 700, marginBottom: 8, marginTop: 16 }}>{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 style={{ color: '#FAFAFA', fontSize: 16, fontWeight: 700, marginBottom: 6, marginTop: 12 }}>{children}</h2>
+            <h2 style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 700, marginBottom: 6, marginTop: 12 }}>{children}</h2>
           ),
           h3: ({ children }) => (
-            <h3 style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 600, marginBottom: 4, marginTop: 10 }}>{children}</h3>
+            <h3 style={{ color: '#E8E4E0', fontSize: 14, fontWeight: 600, marginBottom: 4, marginTop: 10 }}>{children}</h3>
           ),
           blockquote: ({ children }) => (
             <blockquote style={{
-              borderLeft: '3px solid #10B981',
+              borderLeft: '3px solid #E5A54B',
               paddingLeft: 12,
               margin: '8px 0',
-              color: '#9CA3AF',
+              color: '#9C9690',
             }}>{children}</blockquote>
           ),
           a: ({ children, href }) => (
-            <a href={href} style={{ color: '#06B6D4', textDecoration: 'none' }}>{children}</a>
+            <a href={href} style={{ color: '#60A5FA', textDecoration: 'none' }}>{children}</a>
           ),
           table: ({ children }) => (
             <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12 }}>{children}</table>
           ),
           th: ({ children }) => (
-            <th style={{ border: '1px solid #2a2a2a', padding: '6px 10px', textAlign: 'left', color: '#FAFAFA', background: '#0F0F0F', fontWeight: 600, fontSize: 12 }}>{children}</th>
+            <th style={{ border: '1px solid #2A2520', padding: '6px 10px', textAlign: 'left', color: '#E8E4E0', background: '#171412', fontWeight: 600, fontSize: 12 }}>{children}</th>
           ),
           td: ({ children }) => (
-            <td style={{ border: '1px solid #2a2a2a', padding: '6px 10px', color: '#FAFAFA', fontSize: 12 }}>{children}</td>
+            <td style={{ border: '1px solid #2A2520', padding: '6px 10px', color: '#E8E4E0', fontSize: 12 }}>{children}</td>
           ),
         }}
       >
@@ -230,10 +284,10 @@ function BlockRenderer({ block }: { block: DisplayBlock }) {
 }
 
 function ContextProgressBar({ percent }: { percent: number }) {
-  const barColor = percent > 80 ? '#EF4444' : percent > 60 ? '#F59E0B' : '#10B981';
+  const barColor = percent > 80 ? '#EF4444' : percent > 60 ? '#E5A54B' : '#E5A54B';
   return (
     <div className="flex items-center" style={{ gap: 6 }}>
-      <div style={{ width: 80, height: 6, background: '#1F1F1F', borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ width: 80, height: 6, background: '#33302A', borderRadius: 3, overflow: 'hidden' }}>
         <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 3, transition: 'width 0.3s' }} />
       </div>
       <span style={{ color: barColor, fontSize: 10, whiteSpace: 'nowrap' }}>
@@ -287,63 +341,86 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
+  const [showDiffSummary, setShowDiffSummary] = useState(false);
+
   if (msg.role === 'user') {
+    const diffLines = checkpoint?.git_diff_summary?.split('\n').filter((l) => l.trim()) ?? [];
+
     return (
       <div>
-        {/* user header — design: gap 8, marginBottom 8 */}
-        <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-          <span style={{ color: '#06B6D4', fontSize: 12, fontWeight: 700 }}>{'>'} you</span>
-          <span style={{ color: '#4B5563', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
-          {checkpoint && checkpoint.git_commit_hash && (
-            <div style={{ marginLeft: 'auto' }}>
-              {rollbackState === 'confirm' ? (
-                <div className="flex items-center" style={{ gap: 6 }}>
-                  <span style={{ color: '#9CA3AF', fontSize: 11 }}>rollback to this point?</span>
-                  <span
-                    onClick={() => confirmRollback(checkpoint)}
-                    style={{
-                      color: '#0A0A0A', background: '#10B981', fontSize: 11, fontWeight: 500,
-                      padding: '2px 10px', cursor: 'pointer',
-                    }}
-                  >
-                    yes
-                  </span>
-                  <span
-                    onClick={cancelRollback}
-                    style={{
-                      color: '#9CA3AF', border: '1px solid #2a2a2a', fontSize: 11,
-                      padding: '2px 10px', cursor: 'pointer',
-                    }}
-                  >
-                    no
-                  </span>
-                </div>
-              ) : rollbackState === 'loading' ? (
-                <span style={{ color: '#F59E0B', fontSize: 11 }}>rolling back...</span>
-              ) : rollbackState === 'done' || rollbackState === 'error' ? (
-                <span style={{ color: rollbackState === 'done' ? '#10B981' : '#EF4444', fontSize: 11 }}>{rollbackMsg}</span>
-              ) : (
-                <div
-                  onClick={() => handleRollback(checkpoint)}
-                  className="flex items-center"
+        {/* checkpoint row */}
+        {checkpoint && checkpoint.git_commit_hash && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, position: 'relative' }}>
+            {rollbackState === 'confirm' ? (
+              <div className="flex items-center" style={{ gap: 6 }}>
+                <span style={{ color: '#9C9690', fontSize: 11 }}>rollback to this point?</span>
+                <span
+                  onClick={() => confirmRollback(checkpoint)}
                   style={{
-                    gap: 5, cursor: 'pointer', padding: '2px 8px',
-                    border: '1px solid #2a2a2a', background: '#0F0F0F',
+                    color: '#1C1917', background: '#E5A54B', fontSize: 11, fontWeight: 500,
+                    padding: '2px 10px', cursor: 'pointer', borderRadius: 4,
                   }}
-                  title={`checkpoint: ${checkpoint.git_commit_hash}\n${checkpoint.git_diff_summary ?? 'no changes'}`}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                  </svg>
-                  <span style={{ color: '#9CA3AF', fontSize: 11 }}>{checkpoint.git_commit_hash.slice(0, 7)}</span>
+                  yes
+                </span>
+                <span
+                  onClick={cancelRollback}
+                  style={{
+                    color: '#9C9690', border: '1px solid #2A2520', fontSize: 11,
+                    padding: '2px 10px', cursor: 'pointer', borderRadius: 4,
+                  }}
+                >
+                  no
+                </span>
+              </div>
+            ) : rollbackState === 'loading' ? (
+              <span style={{ color: '#E5A54B', fontSize: 11 }}>rolling back...</span>
+            ) : rollbackState === 'done' || rollbackState === 'error' ? (
+              <span style={{ color: rollbackState === 'done' ? '#E5A54B' : '#EF4444', fontSize: 11 }}>{rollbackMsg}</span>
+            ) : (
+              <div
+                className="flex items-center"
+                style={{
+                  gap: 5, cursor: 'pointer', padding: '2px 8px',
+                  background: '#262220', borderRadius: 8,
+                }}
+                onMouseEnter={() => setShowDiffSummary(true)}
+                onMouseLeave={() => setShowDiffSummary(false)}
+                onClick={() => handleRollback(checkpoint)}
+              >
+                <History size={12} style={{ color: '#6B6560' }} />
+                <span style={{ color: '#9C9690', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>{checkpoint.git_commit_hash?.slice(0, 7)}</span>
+                <span style={{ color: '#6B6560', fontSize: 11 }}>&middot;</span>
+                <span style={{ color: '#6B6560', fontSize: 11 }}>rollback</span>
+              </div>
+            )}
+            {/* Diff summary popup on hover */}
+            {showDiffSummary && diffLines.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 50,
+                background: '#262220', border: '1px solid #2A2520', borderRadius: 8,
+                padding: '8px 12px', minWidth: 200, maxWidth: 360,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              }}>
+                <div style={{ color: '#9C9690', fontSize: 10, marginBottom: 6, fontWeight: 500 }}>
+                  Changed files
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-        {/* user content — design: padding [12,16], border rgba blue */}
-        <div style={{ padding: '12px 16px', border: '1px solid rgba(96,165,250,0.15)' }}>
-          <div style={{ color: '#FAFAFA', fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+                {diffLines.map((line, i) => (
+                  <div key={i} style={{ color: '#C8C4BE', fontSize: 11, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {/* user content — right-aligned bubble */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{
+            background: '#33302A', borderRadius: 12, padding: '12px 16px', maxWidth: '80%',
+          }}>
+            <div style={{ color: '#E8E4E0', fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+          </div>
         </div>
       </div>
     );
@@ -375,27 +452,27 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
     <div>
       {/* assistant header */}
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-        <span style={{ color: '#10B981', fontSize: 12, fontWeight: 700 }}>{'>'} claude</span>
-        {msg.model && <span style={{ color: '#6B7280', fontSize: 10 }}>{msg.model}</span>}
-        <span style={{ color: '#4B5563', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
+        <Sparkles size={16} style={{ color: '#E5A54B' }} />
+        <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {msg.model === 'opus' ? 'Opus 4.6' : msg.model === 'sonnet' ? 'Sonnet 4.6' : msg.model === 'haiku' ? 'Haiku 4.5' : msg.model || 'Opus 4.6'}</span>
+        <span style={{ color: '#6B6560', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
       </div>
 
       {segments.map((seg, idx) => (
         <div key={idx} style={{ marginBottom: 8 }}>
           {/* activity */}
           {seg.activity.length > 0 && (
-            <div style={{ marginBottom: seg.reply ? 8 : 0 }}>
+            <div style={{ marginBottom: seg.reply ? 10 : 0 }}>
               <div
                 className="flex items-center"
                 onClick={() => toggleSegment(idx)}
                 style={{ gap: 6, cursor: 'pointer', marginBottom: collapsedSegments[idx] ? 0 : 6 }}
               >
-                <span style={{ color: '#6B7280', fontSize: 13 }}>{collapsedSegments[idx] ? '▸' : '▾'}</span>
-                <span style={{ color: '#9CA3AF', fontSize: 13 }}>Activity</span>
-                <span style={{ color: '#4B5563', fontSize: 12 }}>{seg.activity.length} steps</span>
+                <span style={{ color: '#6B6560', fontSize: 13 }}>{collapsedSegments[idx] ? '▸' : '▾'}</span>
+                <span style={{ color: '#9C9690', fontSize: 13 }}>Activity</span>
+                <span style={{ color: '#6B6560', fontSize: 12 }}>{seg.activity.length} steps</span>
               </div>
               {!collapsedSegments[idx] && (
-                <div style={{ borderLeft: '1px solid #2a2a2a', marginLeft: 9 }}>
+                <div style={{ borderLeft: '1px solid #2A2520', marginLeft: 9, paddingLeft: 12 }}>
                   {seg.activity.map((block, j) => (
                     <BlockRenderer key={j} block={block} />
                   ))}
@@ -411,12 +488,12 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
       {/* result bar */}
       {(msg.cost != null || msg.duration_ms != null) && (
         <div className="flex items-center" style={{ padding: '6px 0', gap: 16, marginTop: 8 }}>
-          <div style={{ flex: 1, height: 1, background: '#2a2a2a' }} />
-          <span style={{ color: '#4B5563', fontSize: 10, whiteSpace: 'nowrap' }}>
+          <div style={{ flex: 1, height: 1, background: '#2A2520' }} />
+          <span style={{ color: '#6B6560', fontSize: 10, whiteSpace: 'nowrap' }}>
             {msg.duration_ms != null ? `${(msg.duration_ms / 1000).toFixed(1)}s` : ''}
             {msg.cost != null ? ` · $${msg.cost.toFixed(4)}` : ''}
           </span>
-          <div style={{ flex: 1, height: 1, background: '#2a2a2a' }} />
+          <div style={{ flex: 1, height: 1, background: '#2A2520' }} />
         </div>
       )}
     </div>
@@ -449,10 +526,10 @@ export function CenterPanel() {
 
   const {
     messages,
+    sessions,
     streamingBlocks,
     isStreaming,
     activeSessionId,
-    sessions,
     model,
     totalCost,
     contextUsage,
@@ -461,7 +538,6 @@ export function CenterPanel() {
     stopStreaming,
     setModel,
   } = useAppStore();
-
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
   // Auto-scroll on new messages or streaming blocks
@@ -481,7 +557,13 @@ export function CenterPanel() {
         text += node.textContent ?? '';
       } else if (node instanceof HTMLElement) {
         if (node.dataset.filePath) {
-          const tag = node.textContent ?? '';
+          // Extract label text excluding the close button (×)
+          let tag = '';
+          node.querySelectorAll('span').forEach((span) => {
+            if (span.textContent !== '\u00D7') tag += span.textContent ?? '';
+          });
+          // Fallback: if no spans found (e.g. error fallback), use textContent minus trailing ×
+          if (!tag) tag = (node.textContent ?? '').replace(/\u00D7$/, '').trim();
           refs[tag] = node.dataset.filePath;
           text += tag;
         } else {
@@ -516,32 +598,76 @@ export function CenterPanel() {
     chip.contentEditable = 'false';
     chip.dataset.filePath = filePath;
 
+    // Helper: create a close (×) button for chips
+    const makeCloseBtn = () => {
+      const btn = document.createElement('span');
+      btn.textContent = '\u00D7';
+      btn.style.cssText = 'color:#6B6560;font-size:14px;line-height:1;cursor:pointer;margin-left:2px;flex-shrink:0;';
+      btn.addEventListener('mouseenter', () => { btn.style.color = '#E8E4E0'; });
+      btn.addEventListener('mouseleave', () => { btn.style.color = '#6B6560'; });
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const parent = chip.parentNode;
+        // Remove trailing space if present
+        if (chip.nextSibling && chip.nextSibling.nodeType === Node.TEXT_NODE && chip.nextSibling.textContent === '\u00A0') {
+          chip.nextSibling.remove();
+        }
+        chip.remove();
+        // Restore cursor in editor
+        if (parent && el) {
+          el.focus();
+          const sel = window.getSelection();
+          if (sel) {
+            const r = document.createRange();
+            r.selectNodeContents(el);
+            r.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
+        }
+      });
+      return btn;
+    };
+
     if (isImage) {
-      // Image chip with thumbnail
-      chip.style.cssText = 'background:#1a2a1a;border:1px solid #2a4030;padding:2px 6px 2px 2px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-flex;align-items:center;gap:4px;line-height:18px;vertical-align:baseline;user-select:all;cursor:pointer;';
+      // Image chip — inline-block with fixed line-height so cursor stays normal height
+      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;padding:3px;margin:0 2px;border-radius:6px;display:inline-block;vertical-align:middle;user-select:all;cursor:pointer;line-height:0;';
+      const inner = document.createElement('span');
+      inner.style.cssText = 'display:flex;align-items:center;gap:4px;';
       const img = document.createElement('img');
       img.src = dataUrl || convertFileSrc(filePath);
-      img.style.cssText = 'height:20px;max-width:40px;object-fit:cover;border-radius:1px;';
-      img.onerror = () => { img.style.display = 'none'; };
-      chip.appendChild(img);
-      const label = document.createElement('span');
-      label.textContent = `@${name}`;
-      label.style.color = '#10B981';
-      chip.appendChild(label);
-      // Store dataUrl for preview
+      img.style.cssText = 'height:28px;max-width:48px;object-fit:cover;border-radius:4px;display:block;';
+      img.onerror = () => { img.style.display = 'none'; const fb = document.createElement('span'); fb.textContent = `@${name}`; fb.style.cssText = 'color:#E5A54B;font-size:12px;line-height:normal;'; inner.insertBefore(fb, inner.firstChild); };
+      inner.appendChild(img);
+      inner.appendChild(makeCloseBtn());
+      chip.appendChild(inner);
+      chip.title = name;
       if (dataUrl) chip.dataset.dataUrl = dataUrl;
-      // Click to preview
       chip.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).textContent === '\u00D7') return;
         e.preventDefault();
         e.stopPropagation();
         setPreviewImage(dataUrl || convertFileSrc(filePath));
       });
     } else if (isDir) {
-      chip.textContent = `@${name}/`;
-      chip.style.cssText = 'background:#1a1a2a;border:1px solid #2a3050;color:#06B6D4;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;';
+      // Directory chip — pencil design: deep bg + border + folder SVG icon + blue label + close
+      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;color:#60A5FA;padding:3px 8px 3px 6px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
+      const icon = document.createElement('span');
+      icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+      icon.style.cssText = 'flex-shrink:0;display:flex;align-items:center;color:#60A5FA;';
+      const label = document.createElement('span');
+      label.textContent = `${name}/`;
+      chip.appendChild(icon);
+      chip.appendChild(label);
+      chip.appendChild(makeCloseBtn());
     } else {
-      chip.textContent = `@${name}`;
-      chip.style.cssText = 'background:#1a2a1a;border:1px solid #2a4030;color:#10B981;padding:1px 6px;margin:0 2px;font-size:12px;border-radius:2px;display:inline-block;line-height:18px;vertical-align:baseline;user-select:all;';
+      // File chip — pencil design: deep bg + border + amber label + close
+      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;color:#E5A54B;padding:3px 8px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
+      const label = document.createElement('span');
+      label.textContent = `@${name}`;
+      chip.appendChild(label);
+      chip.appendChild(makeCloseBtn());
     }
 
     const space = document.createTextNode('\u00A0');
@@ -621,33 +747,28 @@ export function CenterPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#0A0A0A' }}>
-      {/* header — draggable for window move */}
+    <div className="flex flex-col h-full" style={{ background: '#1C1917' }}>
+      {/* header */}
       <div
-        data-no-select
         className="flex items-center justify-between shrink-0"
-        onMouseDown={(e) => {
-          // Allow drag on empty header space
-          const tag = (e.target as HTMLElement).tagName.toLowerCase();
-          if (tag === 'div' || tag === 'span') {
-            getCurrentWindow().startDragging();
-          }
-        }}
-        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid #2a2a2a' }}
+        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid #2A2520' }}
       >
         <div className="flex items-center" style={{ gap: 10 }}>
-          <span style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 700 }}>
-            $ {activeSession?.name ?? 'no session'}
+          <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>
+            {activeSession?.name ?? 'No session'}
+          </span>
+          <span style={{ background: '#262220', color: '#9C9690', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
+            {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}
           </span>
         </div>
-        <div className="flex items-center" style={{ gap: 12 }}>
-          {/* model badge — design: padding [3,8], gap 4, border #2a2a2a */}
-          <div className="flex items-center" style={{ padding: '3px 8px', gap: 4, border: '1px solid #2a2a2a' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: isStreaming ? '#F59E0B' : '#10B981' }} />
-            <span style={{ color: '#FAFAFA', fontSize: 11 }}>claude-{model}</span>
-          </div>
-          <span style={{ color: '#6B7280', fontSize: 11 }}>${totalCost.toFixed(4)}</span>
-          {contextUsage.total > 0 && <ContextProgressBar percent={contextUsage.percent} />}
+        <div className="flex items-center" style={{ gap: 10 }}>
+          <span style={{ color: '#6B6560', fontSize: 11 }}>${totalCost.toFixed(4)}</span>
+          {contextUsage.total > 0 && (
+            <div className="flex items-center" style={{ gap: 6 }}>
+              <ContextProgressBar percent={contextUsage.percent} />
+              <span style={{ color: '#6B6560', fontSize: 10 }}>{contextUsage.percent}%</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -662,38 +783,49 @@ export function CenterPanel() {
             />
           ))}
 
-          {/* streaming blocks — same Activity timeline layout */}
+          {/* streaming blocks — segmented Activity→Reply like saved messages */}
           {isStreaming && streamingBlocks.length > 0 && (() => {
-            const sActivity = streamingBlocks.filter((b) => b.type === 'thinking' || b.type === 'tool_use');
-            const sReply = streamingBlocks.filter((b) => b.type === 'text');
+            // Segment streaming blocks the same way as saved messages
+            const segs: { activity: DisplayBlock[]; reply: DisplayBlock | null }[] = [];
+            let curAct: DisplayBlock[] = [];
+            for (const block of streamingBlocks) {
+              if (block.type === 'text') {
+                segs.push({ activity: curAct, reply: block });
+                curAct = [];
+              } else {
+                curAct.push(block);
+              }
+            }
+            if (curAct.length > 0) {
+              segs.push({ activity: curAct, reply: null });
+            }
             return (
               <div>
                 <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-                  <span style={{ color: '#10B981', fontSize: 12, fontWeight: 700 }}>{'>'} claude</span>
-                  <span style={{ color: '#6B7280', fontSize: 10 }}>{model}</span>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F59E0B', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <Sparkles size={16} style={{ color: '#E5A54B' }} />
+                  <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E5A54B', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <StreamTimer />
                 </div>
-                {sActivity.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <div className="flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-                      <span style={{ color: '#6B7280', fontSize: 13 }}>▾</span>
-                      <span style={{ color: '#9CA3AF', fontSize: 13 }}>Activity</span>
-                      <span style={{ color: '#4B5563', fontSize: 12 }}>{sActivity.length} steps</span>
-                    </div>
-                    <div style={{ borderLeft: '1px solid #2a2a2a', marginLeft: 9 }}>
-                      {sActivity.map((block, j) => (
-                        <BlockRenderer key={j} block={block} />
-                      ))}
-                    </div>
+                {segs.map((seg, idx) => (
+                  <div key={idx}>
+                    {seg.activity.length > 0 && (
+                      <div style={{ marginBottom: seg.reply ? 10 : 0 }}>
+                        <div className="flex items-center" style={{ gap: 6, cursor: 'pointer', marginBottom: 6 }}>
+                          <ChevronDown size={13} style={{ color: '#6B6560' }} />
+                          <span style={{ color: '#9C9690', fontSize: 13 }}>Activity</span>
+                          <span style={{ color: '#6B6560', fontSize: 12 }}>{seg.activity.length} steps</span>
+                        </div>
+                        <div style={{ borderLeft: '1px solid #2A2520', marginLeft: 9, paddingLeft: 12 }}>
+                          {seg.activity.map((block, j) => (
+                            <BlockRenderer key={j} block={block} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {seg.reply && <BlockRenderer block={seg.reply} />}
                   </div>
-                )}
-                {sReply.length > 0 && (
-                  <div>
-                    {sReply.map((block, j) => (
-                      <BlockRenderer key={j} block={block} />
-                    ))}
-                  </div>
-                )}
+                ))}
               </div>
             );
           })()}
@@ -701,17 +833,18 @@ export function CenterPanel() {
           {/* streaming indicator when no blocks yet */}
           {isStreaming && streamingBlocks.length === 0 && (
             <div className="flex items-center" style={{ gap: 8, padding: '12px 0' }}>
-              <span style={{ color: '#10B981', fontSize: 12, fontWeight: 700 }}>{'>'} claude</span>
+              <Sparkles size={16} style={{ color: '#E5A54B' }} />
+              <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
               <span
                 style={{
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  background: '#F59E0B',
+                  background: '#E5A54B',
                   animation: 'pulse 1.5s ease-in-out infinite',
                 }}
               />
-              <span style={{ color: '#6B7280', fontSize: 11 }}>thinking...</span>
+              <span style={{ color: '#6B6560', fontSize: 11 }}>thinking...</span>
             </div>
           )}
 
@@ -783,63 +916,18 @@ export function CenterPanel() {
           }
         }}
         style={{
-          borderTop: isDragOver ? '2px solid #10B981' : '1px solid #2a2a2a',
-          padding: isDragOver ? '15px 24px 24px' : '16px 24px 24px',
-          background: isDragOver ? '#10B98110' : 'transparent',
+          borderTop: isDragOver ? '2px solid #E5A54B' : '1px solid #2A2520',
+          padding: isDragOver ? '12px 24px 10px' : '12px 24px 10px',
+          background: isDragOver ? '#E5A54B33' : 'transparent',
           transition: 'background 0.15s, border-top 0.15s',
         }}
       >
-        {/* toolbar — design: gap 12 */}
-        <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
-          {/* cli selector */}
-          <div className="flex items-center" style={{ padding: '3px 8px', gap: 4, border: '1px solid #2a2a2a' }}>
-            <span style={{ color: '#FAFAFA', fontSize: 11 }}>claude</span>
-          </div>
-          {/* model dropdown — styled select */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                padding: '3px 22px 3px 8px',
-                border: '1px solid #2a2a2a',
-                background: '#0A0A0A',
-                color: '#FAFAFA',
-                fontSize: 11,
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                outline: 'none',
-              }}
-            >
-              {defaultModels.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-              {extraModels.length > 0 && (
-                <optgroup label="previously used">
-                  {extraModels.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-            {/* custom arrow */}
-            <span style={{
-              position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-              color: '#6B7280', fontSize: 8, pointerEvents: 'none',
-            }}>▾</span>
-          </div>
-          <span style={{ color: '#F59E0B', fontSize: 10 }}>--dangerously-skip-permissions</span>
-        </div>
-
         {/* input row */}
-        <div className="flex items-end" style={{ gap: 10 }}>
+        <div className="flex items-start" style={{ gap: 10 }}>
           <div
             className="flex items-start flex-1"
-            style={{ padding: '10px 14px', border: '1px solid #2a2a2a', gap: 8, minHeight: 40 }}
+            style={{ padding: '12px 16px', background: '#262220', borderRadius: 12, gap: 8, minHeight: 40 }}
           >
-            <span style={{ color: '#10B981', fontSize: 13, lineHeight: '20px', flexShrink: 0 }}>$</span>
             <div
               ref={editorRef}
               contentEditable={!!activeSessionId}
@@ -848,12 +936,60 @@ export function CenterPanel() {
               onPaste={async (e) => {
                 const items = e.clipboardData?.items;
                 if (!items) return;
+
+                // Check for files (copied from Finder/Explorer)
+                const files = e.clipboardData?.files;
+                if (files && files.length > 0) {
+                  for (const file of Array.from(files)) {
+                    if (file.type.startsWith('image/')) {
+                      e.preventDefault();
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        const base64 = reader.result as string;
+                        const { projects, activeProjectId } = useAppStore.getState();
+                        const project = projects.find((p) => p.id === activeProjectId);
+                        if (!project) return;
+                        try {
+                          const savedPath = await api.savePastedImage(base64, project.path);
+                          insertFileChip(savedPath, base64);
+                        } catch (err) {
+                          console.error('Failed to save pasted image:', err);
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                      return;
+                    }
+                  }
+                }
+
+                // Check for file:// URIs (macOS Finder copy)
+                const uriList = e.clipboardData?.getData('text/uri-list')?.trim();
+                if (uriList) {
+                  const paths = uriList.split('\n')
+                    .map((u) => u.trim())
+                    .filter((u) => u.startsWith('file://'))
+                    .map((u) => decodeURIComponent(u.replace('file://', '')));
+                  if (paths.length > 0) {
+                    e.preventDefault();
+                    for (const p of paths) insertFileChip(p);
+                    return;
+                  }
+                }
+
+                // Check for pasted text that looks like a file/dir path
+                const pastedText = e.clipboardData?.getData('text/plain')?.trim();
+                if (pastedText && pastedText.startsWith('/') && !pastedText.includes('\n')) {
+                  e.preventDefault();
+                  insertFileChip(pastedText);
+                  return;
+                }
+
+                // Check for image items (screenshot paste etc)
                 for (const item of Array.from(items)) {
                   if (item.type.startsWith('image/')) {
                     e.preventDefault();
                     const blob = item.getAsFile();
                     if (!blob) return;
-                    // Convert to base64
                     const reader = new FileReader();
                     reader.onload = async () => {
                       const base64 = reader.result as string;
@@ -874,73 +1010,81 @@ export function CenterPanel() {
               }}
               data-placeholder="type a message..."
               style={{
-                color: '#FAFAFA', fontSize: 13, fontFamily: 'inherit',
-                lineHeight: '22px', maxHeight: 150, overflowY: 'auto',
-                outline: 'none', flex: 1, minHeight: 20,
+                color: '#E8E4E0', fontSize: 13, fontFamily: 'inherit',
+                lineHeight: '24px', maxHeight: 150, overflowY: 'auto',
+                outline: 'none', flex: 1, minHeight: 24,
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word',
               }}
             />
           </div>
-          {isStreaming ? (
-            <button
-              onClick={stopStreaming}
-              style={{
-                padding: '10px 16px', background: '#ef4444', color: '#FAFAFA',
-                fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              stop
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!activeSessionId}
-              style={{
-                padding: '10px 16px', background: '#10B981', color: '#0A0A0A',
-                fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                opacity: !activeSessionId ? 0.5 : 1,
-              }}
-            >
-              send
-            </button>
-          )}
         </div>
 
         {/* action bar */}
         <div className="flex items-center justify-between" style={{ marginTop: 6 }}>
-          <div className="flex items-center" style={{ gap: 2 }}>
+          <div className="flex items-center" style={{ gap: 4 }}>
             <button
               onClick={handleAttachFiles}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: '#4B5563', padding: '4px 6px', display: 'flex', alignItems: 'center',
+                color: '#6B6560', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#9CA3AF')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#9C9690')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
               title="attach files"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-              </svg>
+              <CirclePlus size={16} />
             </button>
             <button
               onClick={handleAttachImages}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: '#4B5563', padding: '4px 6px', display: 'flex', alignItems: 'center',
+                color: '#6B6560', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#9CA3AF')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#9C9690')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
               title="attach images"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-              </svg>
+              <Image size={16} />
             </button>
           </div>
-          <span style={{ color: '#4B5563', fontSize: 10 }}>
-            enter ↵ newline · ⌘↵ send
-          </span>
+          <div className="flex items-center" style={{ gap: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                style={{
+                  appearance: 'none', WebkitAppearance: 'none',
+                  background: '#1C1917', borderRadius: 10, padding: '3px 26px 3px 26px',
+                  border: '1px solid #2A2520', color: '#9C9690', fontSize: 11,
+                  fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                }}
+              >
+                {defaultModels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+                {extraModels.length > 0 && (
+                  <optgroup label="previously used">
+                    {extraModels.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <Sparkles size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#E5A54B', pointerEvents: 'none' }} />
+              <ChevronDown size={10} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: '#6B6560', pointerEvents: 'none' }} />
+            </div>
+            {isStreaming ? (
+              <div
+                onClick={stopStreaming}
+                style={{ cursor: 'pointer', padding: '2px 8px', background: '#ef4444', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#E8E4E0' }} />
+                <span style={{ color: '#E8E4E0', fontSize: 10, fontWeight: 500 }}>stop</span>
+              </div>
+            ) : (
+              <Send size={16} style={{ color: '#E5A54B', cursor: 'pointer', opacity: !activeSessionId ? 0.3 : 1 }} onClick={handleSend} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -964,10 +1108,10 @@ export function CenterPanel() {
               style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
             />
             <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <span style={{ color: '#6B7280', fontSize: 11 }}>{previewImage.split('/').pop()}</span>
+              <span style={{ color: '#6B6560', fontSize: 11 }}>{previewImage.split('/').pop()}</span>
               <span
                 onClick={() => setPreviewImage(null)}
-                style={{ color: '#6B7280', fontSize: 12, marginLeft: 16, cursor: 'pointer' }}
+                style={{ color: '#6B6560', fontSize: 12, marginLeft: 16, cursor: 'pointer' }}
               >
                 [esc]
               </span>

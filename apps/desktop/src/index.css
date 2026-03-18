@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* highlight.js code blocks */
-.hljs { background: #0F0F0F !important; color: #FAFAFA; }
+.hljs { background: #171412 !important; color: #E8E4E0; }
 .hljs-keyword { color: #c084fc; }
 .hljs-string { color: #10B981; }
 .hljs-number { color: #F59E0B; }
@@ -19,8 +19,8 @@
 .hljs-punctuation { color: #6B7280; }
 
 @theme {
-  --color-bg-primary: #0A0A0A;
-  --color-bg-elevated: #0F0F0F;
+  --color-bg-primary: #1C1917;
+  --color-bg-elevated: #262220;
   --color-bg-active: #1F1F1F;
   --color-border: #2a2a2a;
   --color-text-primary: #FAFAFA;
@@ -148,8 +148,8 @@ select {
 
 select option,
 select optgroup {
-  background: #0A0A0A;
-  color: #FAFAFA;
+  background: #1C1917;
+  color: #E8E4E0;
   font-family: var(--font-mono);
   font-size: 11px;
 }

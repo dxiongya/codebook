@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DiffEditor, Editor } from '@monaco-editor/react';
+import { GitBranch, Folder, FolderOpen, Settings as SettingsIcon, Sparkles, Check, ArrowUp, File, FileJson, FileText, FileCode, Image, Hash, Plus } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import * as api from '../../lib/api';
 import type { FileChange, DiffResult, FileEntry, FileContent } from '../../types';
@@ -11,16 +12,46 @@ const statusColors: Record<string, string> = {
   '?': '#6B7280',
 };
 
+function fileTypeLabel(filename: string): { text: string; color: string } {
+  if (filename.endsWith('/')) return { text: '\uD83D\uDCC1', color: '#6B6560' };
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, { text: string; color: string }> = {
+    ts: { text: 'TS', color: '#3178C6' },
+    tsx: { text: 'TS', color: '#3178C6' },
+    js: { text: 'JS', color: '#F7DF1E' },
+    jsx: { text: 'JS', color: '#F7DF1E' },
+    json: { text: '{}', color: '#6B6560' },
+    css: { text: '#', color: '#A78BFA' },
+    scss: { text: '#', color: '#A78BFA' },
+    md: { text: '\u2193', color: '#60A5FA' },
+    html: { text: '<>', color: '#E34F26' },
+    py: { text: 'PY', color: '#3572A5' },
+    rs: { text: 'RS', color: '#DEA584' },
+    toml: { text: '\u2261', color: '#6B6560' },
+    yaml: { text: '\u2261', color: '#6B6560' },
+    yml: { text: '\u2261', color: '#6B6560' },
+    lock: { text: '\u2261', color: '#6B6560' },
+    log: { text: '\u2261', color: '#6B6560' },
+    pen: { text: '\u25C6', color: '#E5A54B' },
+    png: { text: 'IMG', color: '#4ADE80' },
+    jpg: { text: 'IMG', color: '#4ADE80' },
+    svg: { text: 'IMG', color: '#4ADE80' },
+    gif: { text: 'IMG', color: '#4ADE80' },
+    webp: { text: 'IMG', color: '#4ADE80' },
+  };
+  return map[ext] ?? { text: '\u00B7', color: '#6B6560' };
+}
+
 const beforeMount = (monaco: any) => {
   monaco.editor.defineTheme('codebook-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
     colors: {
-      'editor.background': '#0A0A0A',
+      'editor.background': '#1C1917',
       'editor.lineHighlightBackground': '#1F1F1F',
       'editorLineNumber.foreground': '#4B5563',
-      'editorGutter.background': '#0A0A0A',
+      'editorGutter.background': '#1C1917',
       'diffEditor.insertedTextBackground': '#10B98118',
       'diffEditor.removedTextBackground': '#EF444418',
       'diffEditor.insertedLineBackground': '#10B98110',
@@ -29,39 +60,45 @@ const beforeMount = (monaco: any) => {
   });
 };
 
-// Terminal-style file type icons
-function fileIcon(name: string, isDir: boolean): { icon: string; color: string } {
-  if (isDir) return { icon: '■', color: '#6B7280' };
+// File type icon using lucide icons + text labels
+function fileIcon(name: string, isDir: boolean): { icon: React.ReactNode; color: string; isLucide: boolean } {
+  if (isDir) return { icon: <Folder size={13} />, color: '#6B7280', isLucide: true };
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  const map: Record<string, { icon: string; color: string }> = {
-    ts: { icon: 'TS', color: '#06B6D4' },
-    tsx: { icon: 'TX', color: '#06B6D4' },
-    js: { icon: 'JS', color: '#F59E0B' },
-    jsx: { icon: 'JX', color: '#F59E0B' },
-    py: { icon: 'PY', color: '#3B82F6' },
-    rs: { icon: 'RS', color: '#F97316' },
-    go: { icon: 'GO', color: '#06B6D4' },
-    json: { icon: '{}', color: '#10B981' },
-    yaml: { icon: '≡', color: '#10B981' },
-    yml: { icon: '≡', color: '#10B981' },
-    toml: { icon: '≡', color: '#10B981' },
-    md: { icon: 'MD', color: '#9CA3AF' },
-    txt: { icon: '¶', color: '#9CA3AF' },
-    css: { icon: '#', color: '#a78bfa' },
-    scss: { icon: '#', color: '#a78bfa' },
-    html: { icon: '<>', color: '#F97316' },
-    svg: { icon: '◇', color: '#F59E0B' },
-    png: { icon: '▣', color: '#10B981' },
-    jpg: { icon: '▣', color: '#10B981' },
-    jpeg: { icon: '▣', color: '#10B981' },
-    gif: { icon: '▣', color: '#10B981' },
-    lock: { icon: '⊘', color: '#4B5563' },
-    env: { icon: '⊕', color: '#F59E0B' },
-    sh: { icon: '$', color: '#10B981' },
-    sql: { icon: 'Q', color: '#3B82F6' },
-    xml: { icon: '<>', color: '#F97316' },
+  // Extensions that get lucide icons
+  const lucideMap: Record<string, { icon: React.ReactNode; color: string }> = {
+    json: { icon: <FileJson size={13} />, color: '#10B981' },
+    yaml: { icon: <FileText size={13} />, color: '#10B981' },
+    yml: { icon: <FileText size={13} />, color: '#10B981' },
+    toml: { icon: <FileText size={13} />, color: '#10B981' },
+    md: { icon: <FileText size={13} />, color: '#9CA3AF' },
+    txt: { icon: <FileText size={13} />, color: '#9CA3AF' },
+    html: { icon: <FileCode size={13} />, color: '#F97316' },
+    xml: { icon: <FileCode size={13} />, color: '#F97316' },
+    svg: { icon: <FileCode size={13} />, color: '#F59E0B' },
+    png: { icon: <Image size={13} />, color: '#10B981' },
+    jpg: { icon: <Image size={13} />, color: '#10B981' },
+    jpeg: { icon: <Image size={13} />, color: '#10B981' },
+    gif: { icon: <Image size={13} />, color: '#10B981' },
+    css: { icon: <Hash size={13} />, color: '#a78bfa' },
+    scss: { icon: <Hash size={13} />, color: '#a78bfa' },
+    lock: { icon: <File size={13} />, color: '#4B5563' },
   };
-  return map[ext] ?? { icon: '·', color: '#4B5563' };
+  if (lucideMap[ext]) return { ...lucideMap[ext], isLucide: true };
+  // Extensions that get text labels
+  const textMap: Record<string, { label: string; color: string }> = {
+    ts: { label: 'TS', color: '#06B6D4' },
+    tsx: { label: 'TX', color: '#06B6D4' },
+    js: { label: 'JS', color: '#F59E0B' },
+    jsx: { label: 'JX', color: '#F59E0B' },
+    py: { label: 'PY', color: '#3B82F6' },
+    rs: { label: 'RS', color: '#F97316' },
+    go: { label: 'GO', color: '#06B6D4' },
+    env: { label: '~', color: '#F59E0B' },
+    sh: { label: '$', color: '#10B981' },
+    sql: { label: 'Q', color: '#3B82F6' },
+  };
+  if (textMap[ext]) return { icon: textMap[ext].label, color: textMap[ext].color, isLucide: false };
+  return { icon: <File size={13} />, color: '#4B5563', isLucide: true };
 }
 
 function FileTreeNode({
@@ -81,7 +118,7 @@ function FileTreeNode({
 }) {
   const isExpanded = !!expandedDirs[entry.path];
   const indent = 16 + depth * 14;
-  const { icon, color } = fileIcon(entry.name, entry.is_dir);
+  const { icon, color, isLucide } = fileIcon(entry.name, entry.is_dir);
   const isEmpty = entry.is_dir && entry.child_count === 0;
   const canExpand = entry.is_dir && !isEmpty;
 
@@ -107,13 +144,27 @@ function FileTreeNode({
       >
         {entry.is_dir ? (
           <span style={{
-            color: isEmpty ? '#333' : '#10B981',
+            color: isEmpty ? '#333' : '#E5A54B',
             fontSize: 9,
             width: 14,
             textAlign: 'center',
             flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}>
-            {isEmpty ? '∅' : isExpanded ? '▾' : '▸'}
+            {isEmpty ? '∅' : isExpanded ? <FolderOpen size={13} style={{ color: '#E5A54B' }} /> : <Folder size={13} style={{ color: '#E5A54B' }} />}
+          </span>
+        ) : isLucide ? (
+          <span style={{
+            color,
+            width: 14,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {icon}
           </span>
         ) : (
           <span style={{
@@ -124,6 +175,7 @@ function FileTreeNode({
             textAlign: 'center',
             flexShrink: 0,
             letterSpacing: -0.5,
+            fontFamily: "'JetBrains Mono', monospace",
           }}>
             {icon}
           </span>
@@ -131,16 +183,17 @@ function FileTreeNode({
         <span style={{
           color: entry.is_dir ? (isEmpty ? '#4B5563' : '#FAFAFA') : color,
           fontSize: 12,
+          fontFamily: "'JetBrains Mono', monospace",
           flex: 1,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          opacity: isEmpty ? 0.5 : entry.is_dir ? 1 : 0.85,
+          opacity: isEmpty ? 0.4 : entry.is_dir ? 1 : 0.85,
         }}>
           {entry.name}{entry.is_dir ? '/' : ''}
         </span>
         {entry.is_dir && entry.child_count != null && (
-          <span style={{ color: '#4B5563', fontSize: 9, flexShrink: 0 }}>
+          <span style={{ color: isEmpty ? '#333' : '#3A3530', fontSize: 9, flexShrink: 0 }}>
             {entry.child_count}
           </span>
         )}
@@ -170,7 +223,7 @@ function FullscreenFileTreeNode({
 }) {
   const isExpanded = !!expandedDirs[entry.path];
   const indent = 12 + depth * 12;
-  const { icon, color } = fileIcon(entry.name, entry.is_dir);
+  const { icon, color, isLucide } = fileIcon(entry.name, entry.is_dir);
   const isEmpty = entry.is_dir && entry.child_count === 0;
   const canExpand = entry.is_dir && !isEmpty;
   const isActive = activeFilePath === entry.path;
@@ -188,12 +241,16 @@ function FullscreenFileTreeNode({
           cursor: (canExpand || !entry.is_dir) ? 'pointer' : 'default',
           gap: 5,
           background: isActive ? '#1F1F1F' : 'transparent',
-          borderLeft: isActive ? '2px solid #10B981' : '2px solid transparent',
+          borderLeft: isActive ? '2px solid #E5A54B' : '2px solid transparent',
         }}
       >
         {entry.is_dir ? (
-          <span style={{ color: isEmpty ? '#333' : '#6B7280', fontSize: 8, width: 10, textAlign: 'center', flexShrink: 0 }}>
-            {isEmpty ? '∅' : isExpanded ? '▾' : '▸'}
+          <span style={{ color: isEmpty ? '#333' : '#6B7280', fontSize: 8, width: 10, textAlign: 'center', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {isEmpty ? '∅' : isExpanded ? <FolderOpen size={11} /> : <Folder size={11} />}
+          </span>
+        ) : isLucide ? (
+          <span style={{ color, width: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {typeof icon === 'string' ? icon : <span style={{ transform: 'scale(0.85)' }}>{icon}</span>}
           </span>
         ) : (
           <span style={{ color, fontSize: 7, fontWeight: 700, width: 10, textAlign: 'center', flexShrink: 0, letterSpacing: -0.5 }}>
@@ -201,7 +258,7 @@ function FullscreenFileTreeNode({
           </span>
         )}
         <span style={{
-          color: isActive ? '#10B981' : entry.is_dir ? (isEmpty ? '#4B5563' : '#9CA3AF') : color,
+          color: isActive ? '#E5A54B' : entry.is_dir ? (isEmpty ? '#4B5563' : '#9CA3AF') : color,
           fontSize: 11,
           flex: 1,
           overflow: 'hidden',
@@ -263,7 +320,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
   if (!projectPath) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <span style={{ color: '#4B5563', fontSize: 12 }}>// select a project</span>
+        <span style={{ color: '#4B5563', fontSize: 12 }}>Select a project</span>
       </div>
     );
   }
@@ -276,8 +333,8 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ padding: '12px 0' }}>
-      <div style={{ padding: '4px 16px 12px', color: '#6B7280', fontSize: 11 }}>
-        // project config
+      <div style={{ padding: '4px 16px 12px', color: '#9CA3AF', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>
+        Project Config
       </div>
       {items.map(({ label, type, content, isJson }) => {
         const hasContent = content != null;
@@ -287,23 +344,44 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
         return (
           <div key={type} style={{ padding: '0 16px', marginBottom: 16 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-              <span style={{ color: '#9CA3AF', fontSize: 12 }}>{label}</span>
+              <div className="flex items-center" style={{ gap: 6 }}>
+                <FileText size={12} style={{ color: '#4B5563', flexShrink: 0 }} />
+                <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+              </div>
               {!isEditing && (
-                <span
-                  onClick={() => {
-                    if (hasContent) {
+                hasContent ? (
+                  <span
+                    onClick={() => {
                       setEditingFile(type);
                       setEditContent(displayText!);
-                    } else {
-                      handleCreate(type);
-                    }
-                  }}
-                  style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#10B981')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
-                >
-                  {hasContent ? 'edit' : 'create'}
-                </span>
+                    }}
+                    style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = '#E5A54B')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+                  >
+                    edit
+                  </span>
+                ) : (
+                  <span
+                    onClick={() => handleCreate(type)}
+                    className="flex items-center"
+                    style={{
+                      color: '#E5A54B',
+                      fontSize: 10,
+                      cursor: 'pointer',
+                      gap: 3,
+                      padding: '2px 8px',
+                      border: '1px solid #3A3530',
+                      borderRadius: 4,
+                      background: '#1F1B17',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#2A2520'; e.currentTarget.style.borderColor = '#E5A54B'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#1F1B17'; e.currentTarget.style.borderColor = '#3A3530'; }}
+                  >
+                    <Plus size={10} />
+                    Create
+                  </span>
+                )
               )}
             </div>
             {isEditing ? (
@@ -313,24 +391,29 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={10}
                   style={{
-                    width: '100%', background: '#0F0F0F', border: '1px solid #10B981',
+                    width: '100%', background: '#171412', border: '1px solid #E5A54B',
                     padding: 10, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                     color: '#FAFAFA', resize: 'vertical', outline: 'none',
                   }}
                 />
                 <div className="flex" style={{ gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                  <span onClick={handleSave} style={{ color: '#10B981', fontSize: 11, cursor: 'pointer' }}>save</span>
+                  <span onClick={handleSave} style={{ color: '#E5A54B', fontSize: 11, cursor: 'pointer' }}>save</span>
                   <span onClick={() => setEditingFile(null)} style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}>cancel</span>
                 </div>
               </div>
             ) : (
               <div style={{
-                background: '#0F0F0F', border: '1px solid #2a2a2a', padding: 10,
+                background: '#171412', border: `1px solid ${hasContent ? '#2A2520' : '#2A2520'}`, padding: 10,
                 fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                 color: hasContent ? '#FAFAFA' : '#4B5563',
                 maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap',
+                borderStyle: hasContent ? 'solid' : 'dashed',
               }}>
-                {hasContent ? displayText : '(not found)'}
+                {hasContent ? displayText : (
+                  <span className="flex items-center justify-center" style={{ gap: 6, padding: '8px 0', color: '#4B5563', fontSize: 11 }}>
+                    File not found
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -350,6 +433,9 @@ export function RightPanel() {
   const activeTab = rightPanelTab;
   const setActiveTab = setRightPanelTab;
   const [branch, setBranch] = useState<string>('');
+  const [branches, setBranches] = useState<string[]>([]);
+  const [gitRepos, setGitRepos] = useState<api.GitRepo[]>([]);
+  const [activeRepoPath, setActiveRepoPath] = useState<string>('');
   const [changes, setChanges] = useState<FileChange[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
@@ -370,17 +456,31 @@ export function RightPanel() {
   const prevStreamingRef = useRef(isStreaming);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Discover git repos on project change
+  useEffect(() => {
+    if (!projectPath) { setGitRepos([]); setActiveRepoPath(''); return; }
+    api.discoverGitRepos(projectPath).then((repos) => {
+      setGitRepos(repos);
+      if (repos.length > 0 && !activeRepoPath) setActiveRepoPath(repos[0].path);
+    }).catch(() => setGitRepos([]));
+  }, [projectPath]);
+
+  // The effective git path: use activeRepoPath if set, otherwise projectPath
+  const effectiveGitPath = activeRepoPath || projectPath || '';
+
   // Fetch branch + status
   const fetchGitData = useCallback(async () => {
-    if (!projectPath) return;
+    if (!effectiveGitPath) return;
     try {
       setGitError(null);
-      const [branchName, fileChanges] = await Promise.all([
-        api.gitBranch(projectPath),
-        api.gitStatus(projectPath),
+      const [branchName, fileChanges, branchList] = await Promise.all([
+        api.gitBranch(effectiveGitPath),
+        api.gitStatus(effectiveGitPath),
+        api.gitListBranches(effectiveGitPath).catch(() => [] as string[]),
       ]);
       setBranch(branchName);
       setChanges(fileChanges);
+      setBranches(branchList);
     } catch (err: any) {
       const msg = typeof err === 'string' ? err : err?.message ?? 'Unknown error';
       if (msg.toLowerCase().includes('not a git repository') || msg.toLowerCase().includes('not a git repo')) {
@@ -390,22 +490,22 @@ export function RightPanel() {
       }
       setBranch('');
       setChanges([]);
+      setBranches([]);
     }
-  }, [projectPath]);
+  }, [effectiveGitPath]);
 
-  // Fetch on mount / project change
+  // Fetch on mount / project change / repo switch
   useEffect(() => {
     fetchGitData();
 
-    // Set up 5-second polling
     if (pollRef.current) clearInterval(pollRef.current);
-    if (projectPath) {
+    if (effectiveGitPath) {
       pollRef.current = setInterval(fetchGitData, 5000);
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchGitData, projectPath]);
+  }, [fetchGitData, effectiveGitPath]);
 
   // Load explorer files when tab switches or project changes
   useEffect(() => {
@@ -504,15 +604,12 @@ export function RightPanel() {
     }
   };
 
-  const stagedCount = changes.filter((c) => c.staged).length;
-  const unstagedCount = changes.filter((c) => !c.staged).length;
-
   // No project selected
   if (!projectPath) {
     return (
       <div
         className="flex flex-col h-full items-center justify-center"
-        style={{ background: '#0A0A0A', borderLeft: '1px solid #2a2a2a' }}
+        style={{ background: '#1C1917', borderLeft: '1px solid #2A2520' }}
       >
         <span style={{ color: '#4B5563', fontSize: 12 }}>// no project selected</span>
       </div>
@@ -522,15 +619,15 @@ export function RightPanel() {
   return (
     <div
       className="flex flex-col h-full"
-      style={{ background: '#0A0A0A', borderLeft: '1px solid #2a2a2a' }}
+      style={{ background: '#1C1917', borderLeft: '1px solid #2A2520' }}
     >
       {/* tabs */}
-      <div className="flex shrink-0" style={{ borderBottom: '1px solid #2a2a2a' }}>
+      <div className="flex shrink-0" style={{ borderBottom: '1px solid #2A2520' }}>
         {([
-          { key: 'git' as const, label: '// changes' },
-          { key: 'files' as const, label: '// explorer' },
-          { key: 'config' as const, label: '// config' },
-        ]).map(({ key, label }) => (
+          { key: 'git' as const, label: 'Git', icon: <GitBranch size={13} /> },
+          { key: 'files' as const, label: 'Files', icon: <Folder size={13} /> },
+          { key: 'config' as const, label: 'Config', icon: <SettingsIcon size={13} /> },
+        ]).map(({ key, label, icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -538,14 +635,18 @@ export function RightPanel() {
               height: 42, padding: '0 20px',
               fontSize: 12,
               fontWeight: activeTab === key ? 500 : 400,
-              color: activeTab === key ? '#10B981' : '#6B7280',
+              color: activeTab === key ? '#E5A54B' : '#6B7280',
               background: 'transparent',
               border: 'none',
-              borderBottom: `2px solid ${activeTab === key ? '#10B981' : 'transparent'}`,
+              borderBottom: `2px solid ${activeTab === key ? '#E5A54B' : 'transparent'}`,
               cursor: 'pointer',
               fontFamily: 'inherit',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
+            {icon}
             {label}
           </button>
         ))}
@@ -558,26 +659,78 @@ export function RightPanel() {
           </div>
         ) : (
           <>
-            {/* branch info — design: padding [10,16], gap 12, border-bottom */}
-            <div
-              className="flex items-center shrink-0"
-              style={{ padding: '10px 16px', gap: 12, borderBottom: '1px solid #2a2a2a' }}
-            >
-              <span style={{ color: '#6B7280', fontSize: 12 }}>&#x2387;</span>
-              <span style={{ color: '#FAFAFA', fontSize: 12 }}>{branch || '...'}</span>
-              <span style={{ color: '#6B7280', fontSize: 10 }}>
-                {stagedCount} staged &middot; {unstagedCount} unstaged
-              </span>
+            {/* branch + repo selector */}
+            <div className="shrink-0" style={{ borderBottom: '1px solid #2A2520' }}>
+              {/* Repo selector (if multiple git repos found) */}
+              {gitRepos.length > 1 && (
+                <div className="flex items-center" style={{ padding: '6px 16px', gap: 6, borderBottom: '1px solid #2A2520' }}>
+                  <Folder size={12} style={{ color: '#6B6560' }} />
+                  <select
+                    value={activeRepoPath}
+                    onChange={(e) => { setActiveRepoPath(e.target.value); }}
+                    style={{
+                      appearance: 'none', background: 'transparent', border: 'none',
+                      color: '#9C9690', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                    }}
+                  >
+                    {gitRepos.map((r) => (
+                      <option key={r.path} value={r.path}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {/* Branch selector */}
+              <div
+                className="flex items-center"
+                style={{ padding: '8px 16px', gap: 6, position: 'relative' }}
+              >
+                <GitBranch size={13} style={{ color: '#E5A54B', flexShrink: 0 }} />
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={branch}
+                    onChange={async (e) => {
+                      const newBranch = e.target.value;
+                      try {
+                        await api.gitCheckout(effectiveGitPath, newBranch);
+                        setBranch(newBranch);
+                        fetchGitData();
+                      } catch (err: any) {
+                        console.error('checkout failed:', err);
+                      }
+                    }}
+                    style={{
+                      appearance: 'none', WebkitAppearance: 'none',
+                      background: 'transparent', border: 'none',
+                      padding: '0 16px 0 0',
+                      color: '#E8E4E0', fontSize: 12, fontWeight: 500,
+                      fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                    }}
+                  >
+                    {[...new Set([...(branch ? [branch] : []), ...branches])].map((b) => (
+                      <option key={b} value={b} style={{ background: '#1C1917' }}>{b}</option>
+                    ))}
+                  </select>
+                  <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', color: '#6B6560', fontSize: 10, pointerEvents: 'none' }}>▾</span>
+                </div>
+              </div>
             </div>
 
             {/* changes + diff area */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* file list (scrollable, shrinkable) */}
               <div className="shrink-0 overflow-y-auto" style={{ maxHeight: '40%', padding: '8px 0' }}>
-                {/* header — design: padding [6,16], space_between */}
+                {/* header */}
                 <div className="flex items-center justify-between" style={{ padding: '6px 16px' }}>
-                  <span style={{ color: '#6B7280', fontSize: 11 }}>// changes</span>
-                  <span style={{ color: '#4B5563', fontSize: 10 }}>[{changes.length}]</span>
+                  <div className="flex items-center" style={{ gap: 8 }}>
+                    <span style={{ color: '#E8E4E0', fontSize: 11, fontWeight: 500 }}>Changes</span>
+                    <span style={{ color: '#6B6560', fontSize: 10, background: '#2A2520', borderRadius: 4, padding: '1px 6px' }}>{changes.length}</span>
+                  </div>
+                  <span
+                    style={{ color: '#EF4444', fontSize: 10, cursor: 'pointer' }}
+                    onClick={() => {/* revert all - placeholder */}}
+                  >
+                    Revert all
+                  </span>
                 </div>
 
                 {/* file items — design: padding [6,16], gap 8, height 28px */}
@@ -599,15 +752,19 @@ export function RightPanel() {
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ color: statusColors[file.status] ?? '#6B7280', fontSize: 10, fontWeight: 500 }}>
-                      [{file.status}]
+                    <span style={{ color: statusColors[file.status] ?? '#6B6560', fontSize: 11, fontWeight: 600, width: 14, textAlign: 'center', flexShrink: 0 }}>
+                      {file.status}
                     </span>
-                    <span style={{ color: '#FAFAFA', fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ color: fileTypeLabel(file.path).color, fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 22, textAlign: 'center', flexShrink: 0 }}>
+                      {fileTypeLabel(file.path).text}
+                    </span>
+                    <span style={{ color: '#E8E4E0', fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {file.path}
                     </span>
-                    <span style={{ color: '#4B5563', fontSize: 10, flexShrink: 0 }}>
-                      +{file.additions}{file.deletions > 0 ? ` -${file.deletions}` : ''}
-                    </span>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <span style={{ color: '#4ADE80', fontSize: 10 }}>+{file.additions}</span>
+                      {file.deletions > 0 && <span style={{ color: '#EF4444', fontSize: 10 }}>-{file.deletions}</span>}
+                    </div>
                   </div>
                 ))}
 
@@ -619,7 +776,7 @@ export function RightPanel() {
               </div>
 
               {/* Inline diff preview — takes remaining vertical space */}
-              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ borderTop: '1px solid #2a2a2a', minHeight: 0, overflow: 'hidden' }}>
+              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ borderTop: '1px solid #2A2520', minHeight: 0, overflow: 'hidden' }}>
                 {diffLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <span style={{ color: '#4B5563', fontSize: 11 }}>// loading diff...</span>
@@ -627,7 +784,7 @@ export function RightPanel() {
                 ) : diffResult ? (
                   <>
                     {/* diff header with expand button */}
-                    <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#0F0F0F' }}>
+                    <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#171412' }}>
                       <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>{diffResult.file_path}</span>
                       <span
                         onClick={() => setFullscreenDiff(diffResult)}
@@ -668,8 +825,8 @@ export function RightPanel() {
                   </>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <span style={{ color: '#4B5563', fontSize: 11 }}>
-                      {selectedFile ? '// no diff available' : '// click a file to view diff'}
+                    <span style={{ color: '#6B6560', fontSize: 11 }}>
+                      {selectedFile ? 'No diff available' : 'Select a file to view diff'}
                     </span>
                   </div>
                 )}
@@ -683,8 +840,8 @@ export function RightPanel() {
                 style={{
                   padding: '4px 16px',
                   fontSize: 10,
-                  color: commitFeedback.startsWith('error') ? '#EF4444' : '#10B981',
-                  background: '#0F0F0F',
+                  color: commitFeedback.startsWith('error') ? '#EF4444' : '#E5A54B',
+                  background: '#171412',
                 }}
               >
                 {commitFeedback.startsWith('error') ? commitFeedback : `committed ${commitFeedback}`}
@@ -698,20 +855,20 @@ export function RightPanel() {
                 style={{
                   padding: '4px 16px',
                   fontSize: 10,
-                  color: pushFeedback.startsWith('error') ? '#EF4444' : '#10B981',
-                  background: '#0F0F0F',
+                  color: pushFeedback.startsWith('error') ? '#EF4444' : '#E5A54B',
+                  background: '#171412',
                 }}
               >
                 {pushFeedback}
               </div>
             )}
 
-            {/* commit bar — design: padding [12,16], gap 8, border-top */}
+            {/* commit bar */}
             <div
-              className="flex items-center shrink-0"
-              style={{ padding: '12px 16px', gap: 8, borderTop: '1px solid #2a2a2a' }}
+              className="flex flex-col shrink-0"
+              style={{ padding: '12px 16px', gap: 8, borderTop: '1px solid #2A2520' }}
             >
-              <div className="flex items-center flex-1" style={{ padding: '8px 12px', border: '1px solid #2a2a2a' }}>
+              <div className="flex items-center" style={{ padding: '7px 10px', border: '1px solid #2A2520', borderRadius: 6, background: 'transparent' }}>
                 <input
                   type="text"
                   placeholder="commit message..."
@@ -722,28 +879,45 @@ export function RightPanel() {
                   }}
                   style={{
                     background: 'transparent', border: 'none', outline: 'none',
-                    color: '#FAFAFA', fontSize: 11, width: '100%', fontFamily: 'inherit',
+                    color: '#E8E4E0', fontSize: 11, width: '100%', fontFamily: 'inherit',
                   }}
                 />
               </div>
-              <button
-                onClick={handleCommit}
-                style={{
-                  padding: '8px 14px', background: '#10B981', color: '#0A0A0A',
-                  fontSize: 11, fontWeight: 500, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                commit
-              </button>
-              <button
-                onClick={handlePush}
-                style={{
-                  padding: '8px 14px', border: '1px solid #2a2a2a', background: 'transparent',
-                  color: '#FAFAFA', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                push
-              </button>
+              <div className="flex" style={{ gap: 6 }}>
+                <button
+                  onClick={() => {/* generate - placeholder */}}
+                  style={{
+                    padding: '6px 10px', background: 'transparent', border: '1px solid #2A2520',
+                    color: '#9C9690', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <Sparkles size={11} style={{ color: '#E5A54B' }} />
+                  Generate
+                </button>
+                <button
+                  onClick={handleCommit}
+                  style={{
+                    padding: '6px 12px', background: '#E5A54B', color: '#1C1917',
+                    fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <Check size={11} />
+                  Commit
+                </button>
+                <button
+                  onClick={handlePush}
+                  style={{
+                    padding: '6px 10px', background: 'transparent', border: '1px solid #2A2520',
+                    color: '#9C9690', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <ArrowUp size={11} />
+                  Push
+                </button>
+              </div>
             </div>
           </>
         )
@@ -752,8 +926,8 @@ export function RightPanel() {
           {/* file tree (scrollable, up to 40%) */}
           <div className="shrink-0 overflow-y-auto" style={{ maxHeight: viewingFile ? '40%' : '100%', padding: '8px 0' }}>
             <div className="flex items-center justify-between" style={{ padding: '6px 16px' }}>
-              <span style={{ color: '#6B7280', fontSize: 11 }}>// files</span>
-              <span style={{ color: '#4B5563', fontSize: 10 }}>
+              <span style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</span>
+              <span style={{ color: '#4B5563', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
                 {explorerPath.split('/').pop()}
               </span>
             </div>
@@ -783,9 +957,9 @@ export function RightPanel() {
 
           {/* file viewer — Monaco editor */}
           {viewingFile && (
-            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid #2a2a2a', minHeight: 0 }}>
+            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid #2A2520', minHeight: 0 }}>
               {/* file header */}
-              <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#0F0F0F' }}>
+              <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#171412' }}>
                 <div className="flex items-center" style={{ gap: 8 }}>
                   <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>
                     {viewingFile.path.split('/').pop()}
@@ -847,13 +1021,13 @@ export function RightPanel() {
           onClick={() => setFullscreenFile(null)}
         >
           <div
-            style={{ flex: 1, margin: 16, background: '#0A0A0A', border: '1px solid #2a2a2a', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            style={{ flex: 1, margin: 16, background: '#1C1917', border: '1px solid #2A2520', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* top bar */}
-            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid #2a2a2a', background: '#0F0F0F' }}>
+            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid #2A2520', background: '#171412' }}>
               <div className="flex items-center" style={{ gap: 8 }}>
-                <span style={{ color: '#10B981', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
+                <span style={{ color: '#E5A54B', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
                 <span style={{ color: '#FAFAFA', fontSize: 12, fontWeight: 600 }}>{fullscreenFile.path.split('/').pop()}</span>
                 <span style={{ color: '#4B5563', fontSize: 10 }}>{fullscreenFile.language}</span>
                 <span style={{ color: '#333', fontSize: 10 }}>│</span>
@@ -867,8 +1041,8 @@ export function RightPanel() {
             {/* body: sidebar + editor */}
             <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
               {/* file sidebar */}
-              <div style={{ width: 220, borderRight: '1px solid #2a2a2a', overflowY: 'auto', padding: '8px 0', flexShrink: 0 }}>
-                <div style={{ padding: '4px 12px 6px', color: '#6B7280', fontSize: 10 }}>// explorer</div>
+              <div style={{ width: 220, borderRight: '1px solid #2A2520', overflowY: 'auto', padding: '8px 0', flexShrink: 0 }}>
+                <div style={{ padding: '4px 12px 6px', color: '#9CA3AF', fontSize: 10, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</div>
                 {explorerFiles.map((entry) => (
                   <FullscreenFileTreeNode
                     key={entry.path}
@@ -938,20 +1112,20 @@ export function RightPanel() {
             onClick={() => setFullscreenDiff(null)}
           >
             <div
-              style={{ flex: 1, margin: 24, background: '#0A0A0A', border: '1px solid #2a2a2a', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+              style={{ flex: 1, margin: 24, background: '#1C1917', border: '1px solid #2A2520', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* modal header with prev/next navigation */}
               <div
                 className="flex items-center justify-between shrink-0"
-                style={{ padding: '8px 20px', borderBottom: '1px solid #2a2a2a', background: '#0F0F0F' }}
+                style={{ padding: '8px 20px', borderBottom: '1px solid #2A2520', background: '#171412' }}
               >
                 {/* left: navigation + filename */}
                 <div className="flex items-center" style={{ gap: 10 }}>
                   <button
                     onClick={() => hasPrev && navTo(currentIdx - 1)}
                     style={{
-                      background: 'transparent', border: '1px solid #2a2a2a', color: hasPrev ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid #2A2520', color: hasPrev ? '#FAFAFA' : '#4B5563',
                       padding: '4px 8px', cursor: hasPrev ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >
@@ -966,7 +1140,7 @@ export function RightPanel() {
                   <button
                     onClick={() => hasNext && navTo(currentIdx + 1)}
                     style={{
-                      background: 'transparent', border: '1px solid #2a2a2a', color: hasNext ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid #2A2520', color: hasNext ? '#FAFAFA' : '#4B5563',
                       padding: '4px 8px', cursor: hasNext ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >
@@ -977,7 +1151,7 @@ export function RightPanel() {
                 <div className="flex items-center" style={{ gap: 12 }}>
                   <span style={{ color: '#6B7280', fontSize: 11 }}>original</span>
                   <span style={{ color: '#4B5563' }}>│</span>
-                  <span style={{ color: '#10B981', fontSize: 11 }}>modified</span>
+                  <span style={{ color: '#E5A54B', fontSize: 11 }}>modified</span>
                   <span
                     onClick={() => setFullscreenDiff(null)}
                     style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer', marginLeft: 4 }}

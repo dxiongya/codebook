@@ -323,3 +323,81 @@ pub fn git_branch(project_path: &str) -> Result<String, String> {
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
+
+/// List all local branches for a git repo.
+pub fn git_list_branches(project_path: &str) -> Result<Vec<String>, String> {
+    let output = Command::new("git")
+        .args(["-C", project_path, "branch", "--format=%(refname:short)"])
+        .output()
+        .map_err(|e| format!("Failed to run git branch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git list branches failed: {}", stderr));
+    }
+
+    let branches = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|l| l.trim().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+    Ok(branches)
+}
+
+/// Switch to a branch.
+pub fn git_checkout(project_path: &str, branch: &str) -> Result<String, String> {
+    let output = Command::new("git")
+        .args(["-C", project_path, "checkout", branch])
+        .output()
+        .map_err(|e| format!("Failed to run git checkout: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git checkout failed: {}", stderr));
+    }
+
+    Ok(format!("Switched to branch '{}'", branch))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitRepo {
+    pub path: String,
+    pub name: String,
+    pub branch: String,
+}
+
+/// Discover git repos: check the project root and immediate subdirectories.
+pub fn discover_git_repos(project_path: &str) -> Vec<GitRepo> {
+    let mut repos = Vec::new();
+    let root = Path::new(project_path);
+
+    // Check root itself
+    if root.join(".git").exists() {
+        if let Ok(branch) = git_branch(project_path) {
+            repos.push(GitRepo {
+                path: project_path.to_string(),
+                name: root.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                branch,
+            });
+        }
+    }
+
+    // Check immediate subdirectories
+    if let Ok(entries) = std::fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() && p.join(".git").exists() {
+                let path_str = p.to_string_lossy().to_string();
+                if let Ok(branch) = git_branch(&path_str) {
+                    repos.push(GitRepo {
+                        path: path_str,
+                        name: p.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                        branch,
+                    });
+                }
+            }
+        }
+    }
+
+    repos
+}

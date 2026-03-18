@@ -78,6 +78,16 @@ export const gitPush = (projectPath: string) =>
 export const gitBranch = (projectPath: string) =>
   invoke<string>('git_branch', { projectPath });
 
+export const gitListBranches = (projectPath: string) =>
+  invoke<string[]>('git_list_branches', { projectPath });
+
+export const gitCheckout = (projectPath: string, branch: string) =>
+  invoke<string>('git_checkout', { projectPath, branch });
+
+export interface GitRepo { path: string; name: string; branch: string; }
+export const discoverGitRepos = (projectPath: string) =>
+  invoke<GitRepo[]>('discover_git_repos', { projectPath });
+
 // Paste image
 export const savePastedImage = (base64Data: string, projectPath: string) =>
   invoke<string>('save_pasted_image', { base64Data, projectPath });
@@ -90,6 +100,13 @@ export const getClaudeCliConfig = () =>
     mcp_servers: Record<string, any>;
     settings: Record<string, any>;
   }>('get_claude_cli_config');
+
+// Global settings (~/.claude/settings.json) - raw read/write
+export const readGlobalSettings = () =>
+  invoke<string>('read_global_settings');
+
+export const saveGlobalSettings = (content: string) =>
+  invoke<void>('save_global_settings', { content });
 
 // Project-level Claude config
 export const getProjectClaudeConfig = (projectPath: string) =>

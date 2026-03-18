@@ -1,8 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { open } from '@tauri-apps/plugin-dialog';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import * as api from '../../lib/api';
+import {
+  Plus,
+  MessageSquare,
+  FolderOpen,
+  Settings,
+  Menu,
+} from 'lucide-react';
+
+// Deterministic color for project dot
+const PROJECT_COLORS = ['#E5A54B', '#4ADE80', '#60A5FA', '#A78BFA', '#EF4444', '#F59E0B', '#06B6D4'];
+function projectColor(index: number) {
+  return PROJECT_COLORS[index % PROJECT_COLORS.length];
+}
 
 export function LeftPanel() {
   const {
@@ -28,7 +40,6 @@ export function LeftPanel() {
     name: string;
   } | null>(null);
 
-  // Close context menu on any click
   useEffect(() => {
     const close = () => setContextMenu(null);
     window.addEventListener('click', close);
@@ -54,7 +65,6 @@ export function LeftPanel() {
   const commitRename = async () => {
     if (renamingId && renameValue.trim()) {
       await api.renameSession(renamingId, renameValue.trim());
-      // Update local state
       useAppStore.setState((s) => ({
         sessions: s.sessions.map((sess) =>
           sess.id === renamingId ? { ...sess, name: renameValue.trim() } : sess
@@ -70,10 +80,8 @@ export function LeftPanel() {
     setRenameValue('');
   };
 
-  // Cache session counts per project (so collapsed projects show correct count)
   const [sessionCounts, setSessionCounts] = useState<Record<string, number>>({});
   useEffect(() => {
-    // Load counts for all projects
     projects.forEach(async (p) => {
       try {
         const s = await api.listSessions(p.id);
@@ -82,7 +90,6 @@ export function LeftPanel() {
     });
   }, [projects]);
 
-  // Update cache when sessions change for the active project
   useEffect(() => {
     if (activeProjectId) {
       setSessionCounts((prev) => ({ ...prev, [activeProjectId]: sessions.length }));
@@ -110,318 +117,302 @@ export function LeftPanel() {
     await createSession(name);
   };
 
-  const formatTime = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
-    const days = Math.floor(hrs / 24);
-    return `${days}d`;
-  };
+  // Draggable divider between projects and sessions
+  const [projectsHeight, setProjectsHeight] = useState(200);
+  const dividerDragging = useRef(false);
+  const dividerStartY = useRef(0);
+  const dividerStartH = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dividerDragging.current) return;
+      const delta = e.clientY - dividerStartY.current;
+      const containerH = containerRef.current?.clientHeight ?? 600;
+      const next = Math.min(containerH * 0.6, Math.max(80, dividerStartH.current + delta));
+      setProjectsHeight(next);
+    };
+    const onMouseUp = () => {
+      if (dividerDragging.current) {
+        dividerDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       data-no-select
       className="flex flex-col h-full"
-      style={{ background: '#0A0A0A', borderRight: '1px solid #2a2a2a' }}
+      style={{ background: '#1C1917', borderRight: '1px solid #2A2520' }}
     >
-      {/* window controls + logo — single row */}
-      <div
-        className="flex items-center shrink-0"
-        onMouseDown={(e) => {
-          const tag = (e.target as HTMLElement).tagName.toLowerCase();
-          if (tag === 'div') getCurrentWindow().startDragging();
-        }}
-        style={{ height: 42, padding: '0 16px', gap: 10, borderBottom: '1px solid #2a2a2a' }}
-      >
-        {/* traffic lights */}
-        <div className="flex items-center" style={{ gap: 6, flexShrink: 0 }}>
-          <span onClick={() => getCurrentWindow().close()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer' }} />
-          <span onClick={() => getCurrentWindow().minimize()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#FEBC2E', cursor: 'pointer' }} />
-          <span onClick={() => getCurrentWindow().toggleMaximize()} style={{ width: 11, height: 11, borderRadius: '50%', background: '#28C840', cursor: 'pointer' }} />
-        </div>
-        {/* logo */}
-        <span style={{ color: '#10B981', fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{'>'}</span>
-        <span style={{ color: '#FAFAFA', fontSize: 14, fontWeight: 500, lineHeight: 1 }}>codebook</span>
-        <span style={{ color: '#6B7280', fontSize: 10, lineHeight: 1 }}>v0.1</span>
+      {/* PROJECTS header (fixed) */}
+      <div className="flex items-center justify-between shrink-0" style={{ padding: '10px 16px 4px 16px' }}>
+        <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>PROJECTS</span>
+        <Plus
+          size={14}
+          style={{ color: '#6B6560', cursor: 'pointer' }}
+          onClick={handleAddProject}
+        />
       </div>
 
-      {/* search */}
-      <div
-        className="flex items-center shrink-0"
-        style={{ padding: '8px 16px', gap: 8, height: 33 }}
-      >
-        <span style={{ color: '#6B7280', fontSize: 14 }}>/</span>
-        <span style={{ color: '#4B5563', fontSize: 13 }}>search projects...</span>
-      </div>
-
-      {/* projects list */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '8px 0' }}>
-        <div
-          className="flex items-center justify-between"
-          style={{ padding: '6px 16px' }}
-        >
-          <span style={{ color: '#6B7280', fontSize: 12 }}>// projects</span>
-          <span
-            onClick={handleAddProject}
-            style={{ color: '#10B981', fontSize: 13, cursor: 'pointer' }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
-          >
-            [+]
-          </span>
-        </div>
-
-        {projects.map((project) => {
-          const isExpanded = activeProjectId === project.id;
-
-          return (
-            <div key={project.id}>
-              <button
-                onClick={() => {
-                  if (isExpanded) {
-                    useAppStore.setState({
-                      activeProjectId: null,
-                      activeSessionId: null,
-                      sessions: [],
-                      references: [],
-                      messages: [],
-                      checkpoints: [],
-                    });
-                  } else {
-                    selectProject(project.id);
-                  }
-                }}
-                className="w-full text-left flex items-center"
+      {/* PROJECTS list (scrollable) */}
+      <div className="shrink-0 overflow-y-auto" style={{ padding: '0 8px', height: projectsHeight }}>
+        <div className="flex flex-col" style={{ gap: 2 }}>
+          {projects.map((project, idx) => {
+            const isActive = activeProjectId === project.id;
+            return (
+              <div
+                key={project.id}
+                onClick={() => selectProject(project.id)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'project', id: project.id, name: project.name });
                 }}
+                className="flex items-center cursor-pointer"
                 style={{
-                  padding: '8px 16px',
+                  padding: '8px 10px',
                   gap: 8,
-                  background: 'transparent',
-                  border: 'none',
-                  borderLeft: isExpanded ? '2px solid #10B981' : '2px solid transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
+                  borderRadius: 8,
+                  background: isActive ? '#262220' : 'transparent',
                 }}
               >
-                <span style={{ color: isExpanded ? '#10B981' : '#6B7280', fontSize: 14 }}>
-                  {isExpanded ? '▾' : '▸'}
+                <div
+                  style={{
+                    width: 8, height: 8, borderRadius: 4, flexShrink: 0,
+                    background: projectColor(idx),
+                  }}
+                />
+                <span
+                  style={{
+                    color: isActive ? '#E8E4E0' : '#9C9690',
+                    fontSize: 12,
+                    fontWeight: isActive ? 500 : 400,
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {project.name}
                 </span>
-                <span style={{ color: '#FAFAFA', fontSize: 14, flex: 1 }}>{project.name}/</span>
-                {isExpanded && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      useAppStore.getState().setRightPanelTab('config');
+                {isActive && (
+                  <span style={{ color: '#6B6560', fontSize: 10 }}>
+                    {sessionCounts[project.id] ?? 0}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+
+          {projects.length === 0 && (
+            <div
+              onClick={handleAddProject}
+              className="flex items-center cursor-pointer"
+              style={{ padding: '8px 10px', gap: 6, borderRadius: 8 }}
+            >
+              <Plus size={14} style={{ color: '#6B6560' }} />
+              <span style={{ color: '#6B6560', fontSize: 12 }}>Add project</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Draggable divider */}
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          dividerDragging.current = true;
+          dividerStartY.current = e.clientY;
+          dividerStartH.current = projectsHeight;
+          document.body.style.cursor = 'row-resize';
+          document.body.style.userSelect = 'none';
+        }}
+        className="shrink-0 cursor-row-resize group"
+        style={{ height: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      >
+        <div style={{ width: 40, height: 2, background: '#3A3530', borderRadius: 2, transition: 'background 0.15s' }}
+          className="group-hover:!bg-[#E5A54B]"
+        />
+      </div>
+
+      {/* Divider between projects and sessions */}
+      {activeProjectId && (
+        <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid #2A2520' }}>
+          <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>SESSIONS</span>
+        </div>
+      )}
+
+      {/* Sessions list */}
+      <div className="flex-1 overflow-y-auto" style={{ padding: '4px 8px' }}>
+        {activeProjectId && sessions.map((session) => {
+          const isActive = activeSessionId === session.id;
+          return (
+            <div
+              key={session.id}
+              onClick={() => selectSession(session.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setContextMenu({ x: e.clientX, y: e.clientY, type: 'session', id: session.id, name: session.name });
+              }}
+              className="flex items-center"
+              style={{
+                padding: '10px 12px',
+                gap: 10,
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: isActive ? '#262220' : 'transparent',
+              }}
+            >
+              <MessageSquare
+                size={14}
+                style={{ color: isActive ? '#E5A54B' : '#6B6560', flexShrink: 0 }}
+              />
+              <div className="flex-1 min-w-0">
+                {renamingId === session.id ? (
+                  <input
+                    ref={renameInputRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                      if (e.key === 'Escape') cancelRename();
                     }}
-                    style={{ color: '#4B5563', fontSize: 14, cursor: 'pointer', padding: '0 4px' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
-                    title="project config"
-                  >
-                    ⚙
-                  </span>
-                )}
-                {!isExpanded && (
-                  <span style={{ color: '#4B5563', fontSize: 12 }}>
-                    [{sessionCounts[project.id] ?? 0}]
-                  </span>
-                )}
-              </button>
-
-              {isExpanded && (
-                <div style={{ paddingBottom: 4 }}>
-                  {/* sessions */}
-                  <div style={{ padding: '4px 0 0 20px' }}>
-                    {sessions.map((session) => {
-                      const isActive = activeSessionId === session.id;
-                      return (
-                        <div
-                          key={session.id}
-                          className="flex items-center"
-                          onClick={() => selectSession(session.id)}
-                          style={{
-                            padding: '7px 10px',
-                            gap: 8,
-                            cursor: 'pointer',
-                            borderLeft: isActive ? '2px solid #10B981' : '2px solid transparent',
-                            marginLeft: -2,
-                          }}
-                        >
-                          <span style={{
-                            width: 6, height: 6, borderRadius: '50%',
-                            background: isActive && isStreaming ? '#F59E0B' : isActive ? '#10B981' : '#4B5563',
-                            flexShrink: 0,
-                            animation: isActive && isStreaming ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                          }} />
-                          {renamingId === session.id ? (
-                            <input
-                              ref={renameInputRef}
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
-                                if (e.key === 'Escape') cancelRename();
-                              }}
-                              onBlur={commitRename}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                color: '#10B981', fontSize: 13, flex: 1,
-                                background: '#0A0A0A', border: '1px solid #10B981',
-                                padding: '1px 4px', outline: 'none', fontFamily: 'inherit',
-                              }}
-                            />
-                          ) : (
-                            <span
-                              onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setContextMenu({ x: e.clientX, y: e.clientY, type: 'session', id: session.id, name: session.name });
-                              }}
-                              style={{
-                                color: isActive ? '#10B981' : '#9CA3AF',
-                                fontSize: 13, flex: 1,
-                              }}
-                            >
-                              {session.name}
-                            </span>
-                          )}
-                          <span style={{ color: '#4B5563', fontSize: 12 }}>
-                            {formatTime(session.updated_at)}
-                          </span>
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteSession(session.id);
-                            }}
-                            style={{
-                              color: '#4B5563', fontSize: 14, cursor: 'pointer',
-                              padding: '0 4px', lineHeight: 1,
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
-                            title="delete session"
-                          >
-                            ×
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {sessions.length === 0 && (
-                      <div style={{ padding: '7px 10px', color: '#4B5563', fontSize: 13 }}>
-                        no sessions yet
-                      </div>
-                    )}
-                  </div>
-
-                  {/* new session */}
-                  <div
-                    onClick={handleNewSession}
-                    className="flex items-center"
+                    onBlur={commitRename}
+                    onClick={(e) => e.stopPropagation()}
                     style={{
-                      padding: '8px 10px 8px 20px', cursor: 'pointer', gap: 6,
-                      borderTop: '1px solid #1a1a1a', marginTop: 2,
+                      color: '#E5A54B', fontSize: 12, width: '100%',
+                      background: '#1C1917', border: '1px solid #E5A54B',
+                      padding: '1px 4px', outline: 'none', borderRadius: 4,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#1a1a1a')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <span style={{ color: '#10B981', fontSize: 14 }}>+</span>
-                    <span style={{ color: '#6B7280', fontSize: 13 }}>new session</span>
-                  </div>
-
-                  {/* references */}
-                  <div style={{ padding: '6px 0 0 0', borderTop: '1px solid #1a1a1a', marginTop: 4 }}>
+                  />
+                ) : (
+                  <>
                     <div
-                      className="flex items-center justify-between"
-                      style={{ padding: '6px 16px 4px 20px' }}
+                      onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
+                      style={{
+                        color: isActive ? '#E8E4E0' : '#9C9690',
+                        fontSize: 12,
+                        fontWeight: isActive ? 500 : 400,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
-                      <span style={{ color: '#4B5563', fontSize: 12 }}>// refs</span>
-                      <span
-                        onClick={handleAddReference}
-                        style={{ color: '#06B6D4', fontSize: 13, cursor: 'pointer' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.8')}
-                      >
-                        [+]
-                      </span>
+                      {session.name}
                     </div>
-                    <div style={{ paddingLeft: 20 }}>
-                      {references.map((ref) => (
-                        <div
-                          key={ref.id}
-                          className="flex items-center"
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('text/plain', ref.path);
-                            e.dataTransfer.effectAllowed = 'copy';
-                          }}
-                          style={{ padding: '5px 10px', gap: 6, cursor: 'grab' }}
-                        >
-                          <span style={{ color: '#06B6D4', fontSize: 13 }}>→</span>
-                          <span style={{ color: '#06B6D4', fontSize: 13, flex: 1, opacity: 0.85, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            title={ref.path}
-                          >
-                            {ref.label ?? ref.path.split('/').filter(Boolean).pop() ?? ref.path}/
-                          </span>
-                          <span
-                            onClick={() => removeReference(ref.id)}
-                            style={{ color: '#4B5563', fontSize: 14, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}
-                            onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
-                            onMouseLeave={(e) => (e.currentTarget.style.color = '#4B5563')}
-                            title="remove reference"
-                          >
-                            ×
-                          </span>
-                        </div>
-                      ))}
-                      {references.length === 0 && (
-                        <div style={{ padding: '5px 10px', color: '#4B5563', fontSize: 12 }}>
-                          no refs
-                        </div>
-                      )}
+                    <div style={{ color: '#6B6560', fontSize: 10, marginTop: 2 }}>
+                      {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
-                  </div>
-
-                </div>
+                  </>
+                )}
+              </div>
+              {isActive && isStreaming && (
+                <div
+                  style={{
+                    width: 6, height: 6, borderRadius: 3,
+                    background: '#E5A54B', flexShrink: 0,
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }}
+                />
               )}
             </div>
           );
         })}
 
-        {projects.length === 0 && (
-          <div style={{ padding: '12px 16px', color: '#4B5563', fontSize: 13 }}>
-            no projects — click [+] to add
+        {activeProjectId && sessions.length === 0 && (
+          <div
+            onClick={handleNewSession}
+            className="flex items-center cursor-pointer"
+            style={{ padding: '10px 12px', gap: 8, borderRadius: 8 }}
+          >
+            <Plus size={14} style={{ color: '#6B6560' }} />
+            <span style={{ color: '#6B6560', fontSize: 12 }}>New session</span>
+          </div>
+        )}
+
+        {activeProjectId && sessions.length > 0 && (
+          <div
+            onClick={handleNewSession}
+            className="flex items-center cursor-pointer"
+            style={{ padding: '8px 12px', gap: 6, marginTop: 2 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#262220')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <Plus size={12} style={{ color: '#6B6560' }} />
+            <span style={{ color: '#6B6560', fontSize: 11 }}>New session</span>
           </div>
         )}
       </div>
 
-      {/* footer */}
+      {/* References */}
+      {activeProjectId && (
+        <div style={{ borderTop: '1px solid #2A2520', padding: '8px 8px 4px 8px' }}>
+          <div className="flex items-center justify-between" style={{ padding: '4px 8px' }}>
+            <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>REFERENCES</span>
+            <Plus
+              size={12}
+              style={{ color: '#6B6560', cursor: 'pointer' }}
+              onClick={handleAddReference}
+            />
+          </div>
+          {references.map((ref) => (
+            <div
+              key={ref.id}
+              className="flex items-center"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', ref.path);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              style={{ padding: '4px 8px', gap: 6, borderRadius: 6, cursor: 'grab' }}
+            >
+              <FolderOpen size={12} style={{ color: '#60A5FA', flexShrink: 0 }} />
+              <span
+                style={{
+                  color: '#9C9690', fontSize: 11, flex: 1,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}
+                title={ref.path}
+              >
+                {ref.label ?? ref.path.split('/').filter(Boolean).pop() ?? ref.path}
+              </span>
+              <span
+                onClick={() => removeReference(ref.id)}
+                style={{ color: '#6B6560', fontSize: 12, cursor: 'pointer', padding: '0 2px' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+              >
+                ×
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bottom bar */}
       <div
-        className="shrink-0"
-        style={{ borderTop: '1px solid #2a2a2a', padding: '12px 16px' }}
+        className="flex items-center justify-between shrink-0"
+        style={{ borderTop: '1px solid #2A2520', padding: '8px 16px' }}
       >
-        <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', flexShrink: 0 }} />
-          <span style={{ color: '#10B981', fontSize: 12 }}>remote: connected</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span style={{ color: '#6B7280', fontSize: 12 }}>$ daxiongya</span>
-          <span
-            onClick={() => useAppStore.getState().setSettingsOpen(true)}
-            style={{ color: '#6B7280', fontSize: 14, cursor: 'pointer' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#FAFAFA')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
-          >[⚙]</span>
-        </div>
+        <Settings
+          size={15}
+          style={{ color: '#6B6560', cursor: 'pointer' }}
+          onClick={() => useAppStore.getState().setSettingsOpen(true)}
+        />
+        <Menu size={15} style={{ color: '#6B6560', cursor: 'pointer' }} />
       </div>
 
-      {/* context menu */}
+      {/* Context menu */}
       {contextMenu && (
         <div
           style={{
@@ -429,13 +420,12 @@ export function LeftPanel() {
             left: contextMenu.x,
             top: contextMenu.y,
             zIndex: 1000,
-            background: '#161616',
-            border: '1px solid #333',
-            borderRadius: 6,
-            padding: '4px',
+            background: '#262220',
+            border: '1px solid #2A2520',
+            borderRadius: 8,
+            padding: 4,
             minWidth: 160,
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(8px)',
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -443,19 +433,19 @@ export function LeftPanel() {
             <>
               <div
                 onClick={() => { startRename(contextMenu.id, contextMenu.name); setContextMenu(null); }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                rename
+                Rename
               </div>
               <div
                 onClick={() => { deleteSession(contextMenu.id); setContextMenu(null); }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                delete
+                Delete
               </div>
             </>
           )}
@@ -467,11 +457,11 @@ export function LeftPanel() {
                   if (p) { import('@tauri-apps/plugin-opener').then((m) => m.revealItemInDir(p.path)); }
                   setContextMenu(null);
                 }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                open in finder
+                Open in Finder
               </div>
               <div
                 onClick={async () => {
@@ -482,28 +472,28 @@ export function LeftPanel() {
                   }
                   setContextMenu(null);
                 }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                open in terminal
+                Open in Terminal
               </div>
               <div
                 onClick={() => { useAppStore.getState().setRightPanelTab('config'); setContextMenu(null); }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#10B981', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                config
+                Config
               </div>
-              <div style={{ height: 1, background: '#2a2a2a', margin: '3px 8px' }} />
+              <div style={{ height: 1, background: '#2A2520', margin: '3px 8px' }} />
               <div
                 onClick={() => { useAppStore.getState().deleteProject(contextMenu.id); setContextMenu(null); }}
-                style={{ padding: '5px 12px', fontSize: 12, color: '#e0e0e0', cursor: 'pointer', borderRadius: 4 }}
+                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#e0e0e0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
               >
-                remove from codebook
+                Remove from Codebook
               </div>
             </>
           )}
