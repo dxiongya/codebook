@@ -5,7 +5,7 @@ mod remote;
 
 use claude::ClaudeManager;
 use db::{Checkpoint, Database, Message, Project, ReferenceDir, Session};
-use remote::{RemoteInfo, RemoteServer};
+use remote::{ConnectionInfo, RemoteInfo, RemoteServer, TailscaleStatus};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 
@@ -881,6 +881,26 @@ async fn stop_remote_server(remote: State<'_, RemoteState>) -> Result<(), String
     remote.0.stop().await
 }
 
+#[tauri::command]
+fn get_tailscale_status() -> TailscaleStatus {
+    remote::get_tailscale_status_sync()
+}
+
+#[tauri::command]
+fn get_connection_info(remote: State<'_, RemoteState>) -> ConnectionInfo {
+    remote.0.get_connection_info()
+}
+
+#[tauri::command]
+async fn generate_pin(remote: State<'_, RemoteState>) -> Result<String, String> {
+    Ok(remote.0.generate_pin().await)
+}
+
+#[tauri::command]
+async fn get_active_pin(remote: State<'_, RemoteState>) -> Result<Option<String>, String> {
+    Ok(remote.0.get_active_pin().await)
+}
+
 // ---------------------------------------------------------------------------
 // Tauri commands – Open in terminal
 // ---------------------------------------------------------------------------
@@ -1182,6 +1202,10 @@ pub fn run() {
             get_remote_info,
             start_remote_server,
             stop_remote_server,
+            get_tailscale_status,
+            get_connection_info,
+            generate_pin,
+            get_active_pin,
         ])
         .on_window_event(|window, event| {
             // Kill all Claude processes when the main window is about to close

@@ -148,3 +148,15 @@ export const startRemoteServer = () =>
 
 export const stopRemoteServer = () =>
   invoke<void>('stop_remote_server');
+
+export const getTailscaleStatus = () =>
+  invoke<{ online: boolean; ip: string | null; hostname: string | null; device_name: string | null }>('get_tailscale_status');
+
+export const getConnectionInfo = () =>
+  invoke<{ lan_ips: string[]; port: number; tailscale_ip: string | null; tailscale_online: boolean }>('get_connection_info');
+
+export const generatePin = () =>
+  invoke<string>('generate_pin');
+
+export const getActivePin = () =>
+  invoke<string | null>('get_active_pin');

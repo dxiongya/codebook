@@ -622,21 +622,62 @@ function RemoteSection() {
     client_count: number;
     running: boolean;
   } | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<{
+    lan_ips: string[];
+    port: number;
+    tailscale_ip: string | null;
+    tailscale_online: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pin, setPin] = useState<string | null>(null);
+  const [pinExpiry, setPinExpiry] = useState<number>(0);
+  const [pinGenerating, setPinGenerating] = useState(false);
 
   const fetchInfo = useCallback(async () => {
     try {
-      const info = await api.getRemoteInfo();
+      const [info, connInfo] = await Promise.all([
+        api.getRemoteInfo(),
+        api.getConnectionInfo(),
+      ]);
       setRemoteInfo(info);
+      setConnectionInfo(connInfo);
     } catch {
-      // Remote commands may not be implemented yet
       setRemoteInfo(null);
+      setConnectionInfo(null);
     }
   }, []);
 
+  // Load existing PIN on mount
   useEffect(() => {
     fetchInfo();
+    api.getActivePin().then((p) => {
+      if (p) {
+        setPin(p);
+        // We don't know exact remaining time, estimate 5 min
+        setPinExpiry(300);
+      }
+    }).catch(() => {});
   }, [fetchInfo]);
+
+  // Countdown timer for PIN expiry
+  useEffect(() => {
+    if (pinExpiry <= 0) {
+      if (pin) {
+        setPin(null);
+      }
+      return;
+    }
+    const timer = setInterval(() => {
+      setPinExpiry((prev) => {
+        if (prev <= 1) {
+          setPin(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [pinExpiry, pin]);
 
   const handleToggle = async () => {
     if (!remoteInfo) return;
@@ -654,6 +695,24 @@ function RemoteSection() {
     setLoading(false);
   };
 
+  const handleGeneratePin = async () => {
+    setPinGenerating(true);
+    try {
+      const newPin = await api.generatePin();
+      setPin(newPin);
+      setPinExpiry(300); // 5 minutes
+    } catch (err) {
+      console.error('Failed to generate PIN:', err);
+    }
+    setPinGenerating(false);
+  };
+
+  const formatExpiry = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div>
       <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
@@ -661,7 +720,7 @@ function RemoteSection() {
       </div>
       <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
 
-      <SectionHeader>status</SectionHeader>
+      <SectionHeader>server status</SectionHeader>
       <div className="flex items-center" style={{ gap: 8 }}>
         <span
           style={{
@@ -675,30 +734,128 @@ function RemoteSection() {
         <span style={{ color: remoteInfo?.running ? '#10B981' : '#9C9690', fontSize: 13 }}>
           {remoteInfo?.running ? 'running' : 'stopped'}
         </span>
+        <span style={{ color: '#6B6560', fontSize: 11, marginLeft: 8 }}>
+          {remoteInfo?.client_count ?? 0} client{(remoteInfo?.client_count ?? 0) !== 1 ? 's' : ''} connected
+        </span>
       </div>
 
-      <SectionHeader>port</SectionHeader>
-      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
-        {remoteInfo?.port ?? 19876}
-      </span>
-
-      <SectionHeader>local ips</SectionHeader>
-      {remoteInfo?.ips && remoteInfo.ips.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {remoteInfo.ips.map((ip) => (
-            <span key={ip} style={{ color: '#E8E4E0', fontSize: 13 }}>
-              {ip}:{remoteInfo.port ?? 19876}
-            </span>
-          ))}
+      <SectionHeader>connection methods</SectionHeader>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
+        {/* LAN */}
+        <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '10px 14px' }}>
+          <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: (connectionInfo?.lan_ips?.length ?? 0) > 0 ? '#10B981' : '#6B6560',
+              flexShrink: 0,
+            }} />
+            <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 500 }}>LAN</span>
+          </div>
+          {connectionInfo?.lan_ips && connectionInfo.lan_ips.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 16 }}>
+              {connectionInfo.lan_ips.map((ip) => (
+                <span key={ip} style={{ color: '#9C9690', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {ip}:{connectionInfo.port}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span style={{ color: '#6B6560', fontSize: 12, paddingLeft: 16 }}>no network interfaces</span>
+          )}
         </div>
-      ) : (
-        <span style={{ color: '#6B6560', fontSize: 12 }}>no network interfaces</span>
-      )}
 
-      <SectionHeader>connected clients</SectionHeader>
-      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
-        {remoteInfo?.client_count ?? 0}
-      </span>
+        {/* Tailscale */}
+        <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '10px 14px' }}>
+          <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: connectionInfo?.tailscale_online ? '#10B981' : '#6B6560',
+              flexShrink: 0,
+            }} />
+            <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 500 }}>Tailscale</span>
+            {!connectionInfo?.tailscale_online && (
+              <span style={{ color: '#6B6560', fontSize: 11 }}>not available</span>
+            )}
+          </div>
+          {connectionInfo?.tailscale_online && connectionInfo.tailscale_ip ? (
+            <div style={{ paddingLeft: 16 }}>
+              <span style={{ color: '#9C9690', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                {connectionInfo.tailscale_ip}:{connectionInfo.port}
+              </span>
+            </div>
+          ) : (
+            <span style={{ color: '#6B6560', fontSize: 11, paddingLeft: 16 }}>
+              Install Tailscale for secure remote access outside your local network
+            </span>
+          )}
+        </div>
+      </div>
+
+      <SectionHeader>pin authentication</SectionHeader>
+      <div style={{ maxWidth: 420 }}>
+        {pin ? (
+          <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '16px 20px', textAlign: 'center' }}>
+            <div style={{ color: '#6B6560', fontSize: 11, marginBottom: 8 }}>
+              Enter this PIN on your mobile device
+            </div>
+            <div style={{
+              color: '#E5A54B',
+              fontSize: 32,
+              fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: '0.3em',
+              marginBottom: 8,
+            }}>
+              {pin}
+            </div>
+            <div style={{
+              color: pinExpiry <= 60 ? '#EF4444' : '#6B6560',
+              fontSize: 12,
+            }}>
+              expires in {formatExpiry(pinExpiry)}
+            </div>
+            <button
+              onClick={handleGeneratePin}
+              disabled={pinGenerating}
+              style={{
+                marginTop: 12,
+                padding: '6px 16px',
+                border: '1px solid #2A2520',
+                background: 'transparent',
+                color: '#9C9690',
+                fontSize: 11,
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+                borderRadius: 6,
+              }}
+            >
+              regenerate
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleGeneratePin}
+            disabled={pinGenerating}
+            style={{
+              padding: '8px 20px',
+              border: '1px solid #2A2520',
+              background: '#E5A54B',
+              color: '#1C1917',
+              fontSize: 12,
+              fontWeight: 500,
+              fontFamily: 'inherit',
+              cursor: pinGenerating ? 'wait' : 'pointer',
+              borderRadius: 6,
+              opacity: pinGenerating ? 0.5 : 1,
+            }}
+          >
+            {pinGenerating ? 'Generating...' : 'Generate PIN'}
+          </button>
+        )}
+        <div style={{ color: '#6B6560', fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+          QR code pairing will be available in a future update
+        </div>
+      </div>
 
       <div style={{ marginTop: 20 }}>
         <button

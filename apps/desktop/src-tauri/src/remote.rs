@@ -1,10 +1,12 @@
 use crate::claude::ClaudeManager;
 use crate::db::Database;
 use futures_util::{SinkExt, StreamExt};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::UdpSocket;
 use std::sync::Arc;
+use std::time::Instant;
 use tauri::{AppHandle, Emitter, Listener};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -20,6 +22,8 @@ pub struct RemoteServer {
     clients: Arc<Mutex<HashMap<String, UnboundedSender<Message>>>>,
     running: Arc<Mutex<bool>>,
     shutdown_tx: Arc<Mutex<Option<mpsc::Sender<()>>>>,
+    active_pin: Arc<Mutex<Option<(String, Instant)>>>,          // (pin, expires_at)
+    authenticated_clients: Arc<Mutex<HashSet<String>>>,          // client_ids
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +32,90 @@ pub struct RemoteInfo {
     pub ips: Vec<String>,
     pub client_count: usize,
     pub running: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TailscaleStatus {
+    pub online: bool,
+    pub ip: Option<String>,
+    pub hostname: Option<String>,
+    pub device_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionInfo {
+    pub lan_ips: Vec<String>,
+    pub port: u16,
+    pub tailscale_ip: Option<String>,
+    pub tailscale_online: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Tailscale detection
+// ---------------------------------------------------------------------------
+
+pub fn get_tailscale_status_sync() -> TailscaleStatus {
+    let output = std::process::Command::new("tailscale")
+        .args(["status", "--json"])
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let json_str = String::from_utf8_lossy(&out.stdout);
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                // Check BackendState for online status
+                let backend_state = parsed
+                    .get("BackendState")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let online = backend_state == "Running";
+
+                // Get self node info
+                let self_node = parsed.get("Self");
+                let ip = self_node
+                    .and_then(|s| s.get("TailscaleIPs"))
+                    .and_then(|ips| ips.as_array())
+                    .and_then(|arr| arr.first())
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let hostname = self_node
+                    .and_then(|s| s.get("HostName"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let device_name = self_node
+                    .and_then(|s| s.get("DNSName"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim_end_matches('.').to_string());
+
+                TailscaleStatus {
+                    online,
+                    ip,
+                    hostname,
+                    device_name,
+                }
+            } else {
+                TailscaleStatus { online: false, ip: None, hostname: None, device_name: None }
+            }
+        }
+        _ => TailscaleStatus { online: false, ip: None, hostname: None, device_name: None },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PIN generation
+// ---------------------------------------------------------------------------
+
+const PIN_LENGTH: usize = 6;
+const PIN_EXPIRY_SECS: u64 = 300; // 5 minutes
+
+fn generate_random_pin() -> String {
+    let mut rng = rand::rng();
+    let chars: Vec<char> = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".chars().collect();
+    (0..PIN_LENGTH)
+        .map(|_| chars[rng.random_range(0..chars.len())])
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -42,6 +130,7 @@ struct ClientRequest {
     message: Option<String>,
     model: Option<String>,
     name: Option<String>,
+    pin: Option<String>,
 }
 
 impl RemoteServer {
@@ -51,6 +140,8 @@ impl RemoteServer {
             clients: Arc::new(Mutex::new(HashMap::new())),
             running: Arc::new(Mutex::new(false)),
             shutdown_tx: Arc::new(Mutex::new(None)),
+            active_pin: Arc::new(Mutex::new(None)),
+            authenticated_clients: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
@@ -79,6 +170,8 @@ impl RemoteServer {
 
         let clients = self.clients.clone();
         let running = self.running.clone();
+        let active_pin = self.active_pin.clone();
+        let authenticated_clients = self.authenticated_clients.clone();
 
         // Shutdown channel
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel::<()>(1);
@@ -179,6 +272,8 @@ impl RemoteServer {
                                 let app_clone = app.clone();
                                 let cid_read = client_id.clone();
                                 let tx_for_read = tx.clone();
+                                let pin_for_read = active_pin.clone();
+                                let auth_for_read = authenticated_clients.clone();
 
                                 tokio::spawn(async move {
                                     while let Some(msg_result) = ws_receiver.next().await {
@@ -191,6 +286,8 @@ impl RemoteServer {
                                                     &db_clone,
                                                     &claude_clone,
                                                     &app_clone,
+                                                    &pin_for_read,
+                                                    &auth_for_read,
                                                 )
                                                 .await;
                                             }
@@ -211,6 +308,9 @@ impl RemoteServer {
                                     // Clean up on disconnect
                                     let mut c = clients_for_read.lock().await;
                                     c.remove(&cid_read);
+                                    // Remove from authenticated set too
+                                    let mut auth = auth_for_read.lock().await;
+                                    auth.remove(&cid_read);
                                     eprintln!("[remote] Client {} removed", cid_read);
                                 });
                             }
@@ -295,6 +395,76 @@ impl RemoteServer {
     pub fn port(&self) -> u16 {
         self.port
     }
+
+    /// Generate a new PIN and store it with expiry.
+    pub async fn generate_pin(&self) -> String {
+        let pin = generate_random_pin();
+        let expires_at = Instant::now() + std::time::Duration::from_secs(PIN_EXPIRY_SECS);
+        let mut guard = self.active_pin.lock().await;
+        *guard = Some((pin.clone(), expires_at));
+        pin
+    }
+
+    /// Get the active PIN if it hasn't expired.
+    pub async fn get_active_pin(&self) -> Option<String> {
+        let guard = self.active_pin.lock().await;
+        match &*guard {
+            Some((pin, expires_at)) if Instant::now() < *expires_at => Some(pin.clone()),
+            _ => None,
+        }
+    }
+
+    /// Get remaining seconds on the active PIN.
+    pub async fn get_pin_remaining_secs(&self) -> Option<u64> {
+        let guard = self.active_pin.lock().await;
+        match &*guard {
+            Some((_pin, expires_at)) if Instant::now() < *expires_at => {
+                Some((*expires_at - Instant::now()).as_secs())
+            }
+            _ => None,
+        }
+    }
+
+    /// Verify a PIN and authenticate a client.
+    pub async fn authenticate_client(&self, client_id: &str, pin: &str) -> bool {
+        let pin_guard = self.active_pin.lock().await;
+        match &*pin_guard {
+            Some((active_pin, expires_at)) if Instant::now() < *expires_at => {
+                if pin.eq_ignore_ascii_case(active_pin) {
+                    drop(pin_guard);
+                    let mut clients = self.authenticated_clients.lock().await;
+                    clients.insert(client_id.to_string());
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if a client is authenticated.
+    pub async fn is_client_authenticated(&self, client_id: &str) -> bool {
+        let clients = self.authenticated_clients.lock().await;
+        clients.contains(client_id)
+    }
+
+    /// Remove a client from authenticated set (on disconnect).
+    pub async fn remove_authenticated_client(&self, client_id: &str) {
+        let mut clients = self.authenticated_clients.lock().await;
+        clients.remove(client_id);
+    }
+
+    /// Get connection info combining LAN and Tailscale.
+    pub fn get_connection_info(&self) -> ConnectionInfo {
+        let ts = get_tailscale_status_sync();
+        ConnectionInfo {
+            lan_ips: Self::get_local_ips(),
+            port: self.port,
+            tailscale_ip: if ts.online { ts.ip } else { None },
+            tailscale_online: ts.online,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -308,6 +478,8 @@ async fn handle_client_message(
     db: &Arc<Database>,
     claude: &Arc<ClaudeManager>,
     app: &AppHandle,
+    active_pin: &Arc<Mutex<Option<(String, Instant)>>>,
+    authenticated_clients: &Arc<Mutex<HashSet<String>>>,
 ) {
     let req: ClientRequest = match serde_json::from_str(text) {
         Ok(r) => r,
@@ -316,6 +488,57 @@ async fn handle_client_message(
             return;
         }
     };
+
+    // Handle authenticate action (always allowed)
+    if req.action == "authenticate" {
+        let pin = match &req.pin {
+            Some(p) => p.clone(),
+            None => {
+                let _ = send_error(tx, "Missing pin field");
+                return;
+            }
+        };
+        // Verify PIN
+        let authenticated = {
+            let pin_guard = active_pin.lock().await;
+            match &*pin_guard {
+                Some((active, expires_at)) if Instant::now() < *expires_at => {
+                    pin.eq_ignore_ascii_case(active)
+                }
+                _ => false,
+            }
+        };
+        if authenticated {
+            let mut clients = authenticated_clients.lock().await;
+            clients.insert(client_id.to_string());
+            let resp = serde_json::json!({
+                "type": "authenticated",
+                "success": true
+            });
+            let _ = tx.send(Message::Text(serde_json::to_string(&resp).unwrap_or_default().into()));
+        } else {
+            let resp = serde_json::json!({
+                "type": "authenticated",
+                "success": false,
+                "message": "Invalid or expired PIN"
+            });
+            let _ = tx.send(Message::Text(serde_json::to_string(&resp).unwrap_or_default().into()));
+        }
+        return;
+    }
+
+    // For all other actions, require authentication
+    {
+        let clients = authenticated_clients.lock().await;
+        if !clients.contains(client_id) {
+            let resp = serde_json::json!({
+                "type": "error",
+                "message": "Not authenticated. Send an 'authenticate' action with a valid PIN first."
+            });
+            let _ = tx.send(Message::Text(serde_json::to_string(&resp).unwrap_or_default().into()));
+            return;
+        }
+    }
 
     match req.action.as_str() {
         "list_projects" => {
