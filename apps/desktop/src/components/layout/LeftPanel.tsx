@@ -8,7 +8,6 @@ import {
   FolderOpen,
   Settings,
   Menu,
-  Sparkles,
 } from 'lucide-react';
 
 // Deterministic color for project dot
@@ -268,27 +267,12 @@ export function LeftPanel() {
               className="flex items-center"
               style={{
                 padding: '10px 12px',
-                gap: 10,
+                gap: 8,
                 borderRadius: 8,
                 cursor: 'pointer',
                 background: isActive ? '#262220' : 'transparent',
               }}
             >
-              {/* CLI type badge */}
-              {session.cli_type === 'codex' ? (
-                <span style={{
-                  fontSize: 10, fontWeight: 700, lineHeight: 1, color: '#4ADE80', flexShrink: 0,
-                  letterSpacing: -0.5,
-                }}>CX</span>
-              ) : session.cli_type === 'gemini' ? (
-                <span style={{
-                  fontSize: 11, fontWeight: 700, lineHeight: 1, color: '#60A5FA', flexShrink: 0,
-                }}>G</span>
-              ) : session.cli_type === 'claude' ? (
-                <Sparkles size={11} style={{ color: '#E5A54B', flexShrink: 0 }} />
-              ) : (
-                <Sparkles size={11} style={{ color: '#6B6560', flexShrink: 0 }} />
-              )}
               <MessageSquare
                 size={14}
                 style={{ color: isActive ? '#E5A54B' : '#6B6560', flexShrink: 0 }}
@@ -313,18 +297,38 @@ export function LeftPanel() {
                   />
                 ) : (
                   <>
-                    <div
-                      onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
-                      style={{
-                        color: isActive ? '#E8E4E0' : '#9C9690',
-                        fontSize: 12,
-                        fontWeight: isActive ? 500 : 400,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {session.name}
+                    <div className="flex items-center" style={{ gap: 6 }}>
+                      <div
+                        onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
+                        style={{
+                          color: isActive ? '#E8E4E0' : '#9C9690',
+                          fontSize: 12,
+                          fontWeight: isActive ? 500 : 400,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        {session.name}
+                      </div>
+                      <span style={{
+                        fontSize: 9, fontWeight: 500, flexShrink: 0,
+                        padding: '1px 5px', borderRadius: 4,
+                        background: '#33302A',
+                        color: session.cli_type === 'codex' ? '#4ADE80'
+                          : session.cli_type === 'gemini' ? '#60A5FA'
+                          : isActive ? '#E5A54B' : '#6B6560',
+                      }}>
+                        {session.cli_type || 'claude'}
+                      </span>
+                      {isActive && isStreaming && (
+                        <div style={{
+                          width: 6, height: 6, borderRadius: 3, flexShrink: 0,
+                          background: '#E5A54B', animation: 'pulse 1.5s ease-in-out infinite',
+                        }} />
+                      )}
                     </div>
                     <div style={{ color: '#6B6560', fontSize: 10, marginTop: 2 }}>
                       {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -332,15 +336,6 @@ export function LeftPanel() {
                   </>
                 )}
               </div>
-              {isActive && isStreaming && (
-                <div
-                  style={{
-                    width: 6, height: 6, borderRadius: 3,
-                    background: '#E5A54B', flexShrink: 0,
-                    animation: 'pulse 1.5s ease-in-out infinite',
-                  }}
-                />
-              )}
             </div>
           );
         })}

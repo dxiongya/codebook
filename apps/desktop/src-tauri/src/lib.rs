@@ -584,6 +584,7 @@ fn import_cli_sessions(
             claude_session_id: Some(claude_sid.clone()),
             model: None,
             total_cost: None,
+            cli_type: Some("claude".to_string()),
             created_at: now.clone(),
             updated_at: now,
         });
