@@ -15,6 +15,7 @@ export interface Session {
   claude_session_id: string | null;
   model: string;
   total_cost: number;
+  cli_type?: string;
   created_at: string;
   updated_at: string;
 }

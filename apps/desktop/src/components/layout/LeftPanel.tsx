@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Settings,
   Menu,
+  Sparkles,
 } from 'lucide-react';
 
 // Deterministic color for project dot
@@ -273,6 +274,21 @@ export function LeftPanel() {
                 background: isActive ? '#262220' : 'transparent',
               }}
             >
+              {/* CLI type badge */}
+              {session.cli_type === 'codex' ? (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, lineHeight: 1, color: '#4ADE80', flexShrink: 0,
+                  letterSpacing: -0.5,
+                }}>CX</span>
+              ) : session.cli_type === 'gemini' ? (
+                <span style={{
+                  fontSize: 11, fontWeight: 700, lineHeight: 1, color: '#60A5FA', flexShrink: 0,
+                }}>G</span>
+              ) : session.cli_type === 'claude' ? (
+                <Sparkles size={11} style={{ color: '#E5A54B', flexShrink: 0 }} />
+              ) : (
+                <Sparkles size={11} style={{ color: '#6B6560', flexShrink: 0 }} />
+              )}
               <MessageSquare
                 size={14}
                 style={{ color: isActive ? '#E5A54B' : '#6B6560', flexShrink: 0 }}

@@ -284,15 +284,10 @@ function BlockRenderer({ block }: { block: DisplayBlock }) {
 }
 
 function ContextProgressBar({ percent }: { percent: number }) {
-  const barColor = percent > 80 ? '#EF4444' : percent > 60 ? '#E5A54B' : '#E5A54B';
+  const barColor = percent > 80 ? '#EF4444' : percent > 50 ? '#E5A54B' : '#4ADE80';
   return (
-    <div className="flex items-center" style={{ gap: 6 }}>
-      <div style={{ width: 80, height: 6, background: '#33302A', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 3, transition: 'width 0.3s' }} />
-      </div>
-      <span style={{ color: barColor, fontSize: 10, whiteSpace: 'nowrap' }}>
-        {percent}%{percent > 80 ? ' context filling up' : ''}
-      </span>
+    <div style={{ width: 60, height: 4, background: '#33302A', borderRadius: 2, overflow: 'hidden' }}>
+      <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
     </div>
   );
 }
@@ -766,7 +761,7 @@ export function CenterPanel() {
           {contextUsage.total > 0 && (
             <div className="flex items-center" style={{ gap: 6 }}>
               <ContextProgressBar percent={contextUsage.percent} />
-              <span style={{ color: '#6B6560', fontSize: 10 }}>{contextUsage.percent}%</span>
+              <span style={{ color: contextUsage.percent > 80 ? '#EF4444' : '#6B6560', fontSize: 10 }}>{contextUsage.percent}%</span>
             </div>
           )}
         </div>

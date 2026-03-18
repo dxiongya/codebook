@@ -34,6 +34,7 @@ pub struct Session {
     pub claude_session_id: Option<String>,
     pub model: Option<String>,
     pub total_cost: Option<f64>,
+    pub cli_type: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -100,6 +101,7 @@ impl Database {
                 claude_session_id TEXT,
                 model             TEXT,
                 total_cost        REAL,
+                cli_type          TEXT NOT NULL DEFAULT 'claude',
                 created_at        TEXT NOT NULL,
                 updated_at        TEXT NOT NULL,
                 FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -141,6 +143,19 @@ impl Database {
             );
             ",
         )?;
+
+        // Migration: add cli_type column for existing databases
+        let has_cli_type: bool = conn
+            .prepare("SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name='cli_type'")?
+            .query_row([], |row| row.get::<_, i64>(0))
+            .map(|count| count > 0)
+            .unwrap_or(false);
+        if !has_cli_type {
+            conn.execute_batch(
+                "ALTER TABLE sessions ADD COLUMN cli_type TEXT NOT NULL DEFAULT 'claude';",
+            )?;
+        }
+
         Ok(())
     }
 
@@ -197,10 +212,11 @@ impl Database {
     pub fn create_session(&self, project_id: &str, name: &str) -> SqlResult<Session> {
         let now = chrono::Utc::now().to_rfc3339();
         let id = uuid::Uuid::new_v4().to_string();
+        let cli_type = "claude";
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO sessions (id, project_id, name, claude_session_id, model, total_cost, created_at, updated_at) VALUES (?1, ?2, ?3, NULL, NULL, NULL, ?4, ?5)",
-            params![id, project_id, name, now, now],
+            "INSERT INTO sessions (id, project_id, name, claude_session_id, model, total_cost, cli_type, created_at, updated_at) VALUES (?1, ?2, ?3, NULL, NULL, NULL, ?4, ?5, ?6)",
+            params![id, project_id, name, cli_type, now, now],
         )?;
         Ok(Session {
             id,
@@ -209,6 +225,7 @@ impl Database {
             claude_session_id: None,
             model: None,
             total_cost: None,
+            cli_type: Some(cli_type.to_string()),
             created_at: now.clone(),
             updated_at: now,
         })
@@ -217,7 +234,7 @@ impl Database {
     pub fn list_sessions(&self, project_id: &str) -> SqlResult<Vec<Session>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, project_id, name, claude_session_id, model, total_cost, created_at, updated_at FROM sessions WHERE project_id = ?1 ORDER BY updated_at DESC",
+            "SELECT id, project_id, name, claude_session_id, model, total_cost, cli_type, created_at, updated_at FROM sessions WHERE project_id = ?1 ORDER BY updated_at DESC",
         )?;
         let rows = stmt.query_map(params![project_id], |row| {
             Ok(Session {
@@ -227,8 +244,9 @@ impl Database {
                 claude_session_id: row.get(3)?,
                 model: row.get(4)?,
                 total_cost: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+                cli_type: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
             })
         })?;
         rows.collect()
