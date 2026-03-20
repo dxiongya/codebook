@@ -100,7 +100,7 @@ export function TopHeader() {
               padding: '4px 5px', borderRadius: 4, display: 'flex', alignItems: 'center',
             }}
           >
-            <PanelLeft size={15} style={{ color: leftPanelVisible ? 'var(--cb-text-muted)' : '#4A4540' }} />
+            <PanelLeft size={15} style={{ color: leftPanelVisible ? 'var(--cb-text-muted)' : 'var(--cb-text-dim)' }} />
           </button>
           <button
             onClick={() => {
@@ -114,7 +114,7 @@ export function TopHeader() {
               padding: '4px 5px', borderRadius: 4, display: 'flex', alignItems: 'center',
             }}
           >
-            <Columns3 size={15} style={{ color: leftPanelVisible && rightPanelVisible ? 'var(--cb-text-muted)' : '#4A4540' }} />
+            <Columns3 size={15} style={{ color: leftPanelVisible && rightPanelVisible ? 'var(--cb-text-muted)' : 'var(--cb-text-dim)' }} />
           </button>
           <button
             onClick={toggleRightPanel}
@@ -124,7 +124,7 @@ export function TopHeader() {
               padding: '4px 5px', borderRadius: 4, display: 'flex', alignItems: 'center',
             }}
           >
-            <PanelRight size={15} style={{ color: rightPanelVisible ? 'var(--cb-text-muted)' : '#4A4540' }} />
+            <PanelRight size={15} style={{ color: rightPanelVisible ? 'var(--cb-text-muted)' : 'var(--cb-text-dim)' }} />
           </button>
         </div>
 

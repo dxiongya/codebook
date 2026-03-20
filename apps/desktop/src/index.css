@@ -186,6 +186,20 @@ select {
   50% { opacity: 0.3; }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Hide original line numbers in inline diff mode (first margin column) */
 .inline-diff-wrapper .original-in-foreign { display: none !important; }
 .inline-diff-wrapper .view-overlays .original-in-foreign { display: none !important; }

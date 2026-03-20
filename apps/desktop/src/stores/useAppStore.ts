@@ -581,8 +581,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { activeSessionId, activeProjectId, model, projects } = get();
-    if (!activeSessionId || !content.trim()) return;
+    const { activeSessionId, activeProjectId, model, projects, isStreaming } = get();
+    if (!activeSessionId || !content.trim() || isStreaming) return;
     try {
       // Save user message to DB
       const saved = await api.saveMessage(activeSessionId, 'user', content);
