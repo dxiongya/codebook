@@ -237,8 +237,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
       }
 
-      // Listen for session-message events (user messages from mobile via hub)
-      listen('session-message', (event) => {
+      // Listen for mobile-originated user messages (separate event to avoid WS echo)
+      listen('session-message-remote', (event) => {
         const payload = event.payload as any;
         const sessionId = payload?.session_id ?? '';
         const msg = payload?.message;
@@ -255,9 +255,31 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       });
 
-      // Auto-select first project if any
-      if (projects.length > 0) {
-        await get().selectProject(projects[0].id);
+      // Listen for remote project creation (mobile imported a project)
+      listen('session-message-remote', (event) => {
+        const payload = event.payload as any;
+        if (payload?.type === 'project_created') {
+          // Refresh project list
+          api.listProjects().then((projects) => {
+            set({ projects });
+          }).catch(() => {});
+        }
+      });
+
+      // Restore last project/session or auto-select first
+      const lastProjectId = await api.getSetting('last_project_id').catch(() => null);
+      const targetProjectId = lastProjectId && projects.some((p) => p.id === lastProjectId)
+        ? lastProjectId
+        : projects[0]?.id;
+
+      if (targetProjectId) {
+        await get().selectProject(targetProjectId);
+
+        // Restore last session if it belongs to this project
+        const lastSessionId = await api.getSetting('last_session_id').catch(() => null);
+        if (lastSessionId && get().sessions.some((s) => s.id === lastSessionId)) {
+          await get().selectSession(lastSessionId);
+        }
       }
     } catch (err) {
       console.error('Failed to init:', err);
@@ -284,8 +306,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       messages: [],
       streamingBlocks: [],
       isStreaming: false,
-      // NOTE: streamingCache is intentionally NOT cleared — background processes keep running
     });
+    // Persist last project
+    api.setSetting('last_project_id', id).catch(() => {});
     try {
       const [sessions, references] = await Promise.all([
         api.listSessions(id),
@@ -336,6 +359,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const PAGE_SIZE = 30;
 
+    // Persist last session
+    api.setSetting('last_session_id', id).catch(() => {});
+
     // Switch to new session — don't assume streaming state yet
     set({
       activeSessionId: id,
@@ -347,10 +373,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       loadingMoreMessages: false,
     });
     try {
-      const [rawMessages, checkpoints, contextStr] = await Promise.all([
+      const [rawMessages, checkpoints, contextStr, costStr] = await Promise.all([
         api.getMessages(id, PAGE_SIZE),
         api.getCheckpoints(id),
         api.getSetting(`context_${id}`).catch(() => null),
+        api.getSetting(`cost_${id}`).catch(() => null),
       ]);
       const messages = rawMessages.map(toDisplayMessage);
       const hasMore = rawMessages.length >= PAGE_SIZE;
@@ -361,15 +388,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         try { contextUsage = JSON.parse(contextStr); } catch { /* ignore */ }
       }
 
-      // Compute total cost from session data
+      // Restore cost: prefer persisted cost, fall back to session DB
       const { sessions } = get();
       const session = sessions.find((s) => s.id === id);
+      const totalCost = costStr ? parseFloat(costStr) : (session?.total_cost ?? 0);
       set({
         messages,
         checkpoints,
         contextUsage,
         hasMoreMessages: hasMore,
-        totalCost: session?.total_cost ?? 0,
+        totalCost,
         model: session?.model ?? 'opus',
       });
 
@@ -805,7 +833,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           if (models.length > 0) {
             const m = models[0];
             const total = m.contextWindow ?? 0;
-            const used = (m.inputTokens ?? 0) + (m.outputTokens ?? 0);
+            // Context = input + cache read (actual context sent to model) + output
+            // NOTE: cacheCreationInputTokens is a billing metric, not context usage
+            const used = (m.inputTokens ?? 0) + (m.cacheReadInputTokens ?? 0) + (m.outputTokens ?? 0);
             const percent = total > 0 ? Math.round((used / total) * 100) : 0;
             set({ contextUsage: { used, total, percent } });
             // Persist to DB for session restore
@@ -813,6 +843,16 @@ export const useAppStore = create<AppState>((set, get) => ({
             if (sid) {
               api.setSetting(`context_${sid}`, JSON.stringify({ used, total, percent })).catch(() => {});
             }
+          }
+        }
+
+        // Also update totalCost from result event directly
+        if (cost > 0) {
+          const { activeSessionId: sid } = get();
+          if (sid) {
+            // Persist accumulated cost
+            const newTotal = get().totalCost + cost;
+            api.setSetting(`cost_${sid}`, String(newTotal)).catch(() => {});
           }
         }
 

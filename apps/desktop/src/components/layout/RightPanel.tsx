@@ -1,11 +1,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DiffEditor, Editor } from '@monaco-editor/react';
-import { GitBranch, GitCommitHorizontal, GitPullRequest, GitMerge, LayoutGrid, Folder, FolderOpen, Sparkles, ArrowUp, ArrowDown, RefreshCw, History, ChevronDown, File, FileJson, FileText, FileCode, Image, Hash, Plus, Undo2, SquareCheck } from 'lucide-react';
+import { Checkbox as BaseCheckbox } from '@base-ui-components/react/checkbox';
+import { GitBranch, GitCommitHorizontal, GitPullRequest, GitMerge, LayoutGrid, Folder, FolderOpen, Sparkles, ArrowUp, ArrowDown, RefreshCw, History, ChevronDown, File, FileJson, FileText, FileCode, Image, Hash, Plus, Undo2, Check } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import * as api from '../../lib/api';
 import type { FileChange, DiffResult, FileEntry, FileContent } from '../../types';
 
 type GitSubTab = 'commit' | 'update' | 'pr' | 'worktree';
+
+// ─── Base UI Checkbox styled for dark theme ─────────────────────────────────
+function StyledCheckbox({ checked, onChange, color }: { checked: boolean; onChange: (v: boolean) => void; color: string }) {
+  return (
+    <BaseCheckbox.Root
+      checked={checked}
+      onCheckedChange={onChange}
+      style={{
+        width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+        border: `1.5px solid ${checked ? color : 'var(--cb-text-dim)'}`,
+        background: checked ? color : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', padding: 0,
+      }}
+    >
+      <BaseCheckbox.Indicator>
+        <Check size={10} style={{ color: 'var(--cb-bg-primary)', strokeWidth: 3 }} />
+      </BaseCheckbox.Indicator>
+    </BaseCheckbox.Root>
+  );
+}
 
 const statusColors: Record<string, string> = {
   M: '#F59E0B',
@@ -14,38 +36,37 @@ const statusColors: Record<string, string> = {
   '?': '#6B7280',
 };
 
-function fileTypeLabel(filename: string): { text: string; color: string } {
-  if (filename.endsWith('/')) return { text: '\uD83D\uDCC1', color: 'var(--cb-text-dim)' };
+function FileTypeIcon({ filename, size = 12 }: { filename: string; size?: number }) {
+  if (filename.endsWith('/')) return <Folder size={size} style={{ color: '#E5A54B' }} />;
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  const map: Record<string, { text: string; color: string }> = {
-    ts: { text: 'TS', color: '#3178C6' },
-    tsx: { text: 'TS', color: '#3178C6' },
-    js: { text: 'JS', color: '#F7DF1E' },
-    jsx: { text: 'JS', color: '#F7DF1E' },
-    json: { text: '{}', color: 'var(--cb-text-dim)' },
-    css: { text: '#', color: '#A78BFA' },
-    scss: { text: '#', color: '#A78BFA' },
-    md: { text: '\u2193', color: '#60A5FA' },
-    html: { text: '<>', color: '#E34F26' },
-    py: { text: 'PY', color: '#3572A5' },
-    rs: { text: 'RS', color: '#DEA584' },
-    toml: { text: '\u2261', color: 'var(--cb-text-dim)' },
-    yaml: { text: '\u2261', color: 'var(--cb-text-dim)' },
-    yml: { text: '\u2261', color: 'var(--cb-text-dim)' },
-    lock: { text: '\u2261', color: 'var(--cb-text-dim)' },
-    log: { text: '\u2261', color: 'var(--cb-text-dim)' },
-    pen: { text: '\u25C6', color: '#E5A54B' },
-    png: { text: 'IMG', color: '#4ADE80' },
-    jpg: { text: 'IMG', color: '#4ADE80' },
-    svg: { text: 'IMG', color: '#4ADE80' },
-    gif: { text: 'IMG', color: '#4ADE80' },
-    webp: { text: 'IMG', color: '#4ADE80' },
+  const iconMap: Record<string, { icon: React.ReactNode }> = {
+    ts: { icon: <FileCode size={size} style={{ color: '#3178C6' }} /> },
+    tsx: { icon: <FileCode size={size} style={{ color: '#3178C6' }} /> },
+    js: { icon: <FileCode size={size} style={{ color: '#F59E0B' }} /> },
+    jsx: { icon: <FileCode size={size} style={{ color: '#F59E0B' }} /> },
+    json: { icon: <FileJson size={size} style={{ color: '#E5A54B' }} /> },
+    css: { icon: <Hash size={size} style={{ color: '#A78BFA' }} /> },
+    scss: { icon: <Hash size={size} style={{ color: '#A78BFA' }} /> },
+    md: { icon: <FileText size={size} style={{ color: '#60A5FA' }} /> },
+    html: { icon: <FileCode size={size} style={{ color: '#E34F26' }} /> },
+    py: { icon: <FileCode size={size} style={{ color: '#3572A5' }} /> },
+    rs: { icon: <FileCode size={size} style={{ color: '#DEA584' }} /> },
+    toml: { icon: <FileText size={size} style={{ color: 'var(--cb-text-muted)' }} /> },
+    yaml: { icon: <FileText size={size} style={{ color: 'var(--cb-text-muted)' }} /> },
+    yml: { icon: <FileText size={size} style={{ color: 'var(--cb-text-muted)' }} /> },
+    lock: { icon: <File size={size} style={{ color: 'var(--cb-text-dim)' }} /> },
+    log: { icon: <FileText size={size} style={{ color: 'var(--cb-text-dim)' }} /> },
+    pen: { icon: <File size={size} style={{ color: '#E5A54B' }} /> },
+    png: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
+    jpg: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
+    svg: { icon: <Image size={size} style={{ color: '#E5A54B' }} /> },
+    gif: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
+    webp: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
   };
-  return map[ext] ?? { text: '\u00B7', color: 'var(--cb-text-dim)' };
+  return <>{iconMap[ext]?.icon ?? <File size={size} style={{ color: 'var(--cb-text-dim)' }} />}</>;
 }
 
 const beforeMount = (monaco: any) => {
-  const bg = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-primary').trim() || '#1C1917';
   const bgCode = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-code').trim() || '#171412';
   monaco.editor.defineTheme('codebook-dark', {
     base: 'vs-dark',
@@ -439,6 +460,9 @@ export function RightPanel() {
   const [branch, setBranch] = useState<string>('');
   const [branches, setBranches] = useState<string[]>([]);
   const [gitRepos, setGitRepos] = useState<api.GitRepo[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<Set<string>>(new Set());
+  const [fileListHeight, setFileListHeight] = useState(250);
+  const diffDragRef = useRef<{ startY: number; startH: number } | null>(null);
   const [activeRepoPath, setActiveRepoPath] = useState<string>('');
   const [changes, setChanges] = useState<FileChange[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -578,11 +602,57 @@ export function RightPanel() {
     }
   }, [changes, selectedFile]);
 
+  // Auto-stage all files when changes list updates
+  useEffect(() => {
+    setStagedFiles(new Set(changes.map((c) => c.path)));
+  }, [changes]);
+
+  const toggleStaged = useCallback((path: string) => {
+    setStagedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
+  const toggleAllStaged = useCallback(() => {
+    setStagedFiles((prev) => {
+      if (prev.size === changes.length) return new Set();
+      return new Set(changes.map((c) => c.path));
+    });
+  }, [changes]);
+
+  const stagedCount = stagedFiles.size;
+
+  // Drag to resize file list vs diff area
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!diffDragRef.current) return;
+      const delta = e.clientY - diffDragRef.current.startY;
+      setFileListHeight(Math.max(80, Math.min(600, diffDragRef.current.startH + delta)));
+    };
+    const onMouseUp = () => {
+      if (diffDragRef.current) {
+        diffDragRef.current = null;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   // Commit
   const handleCommit = async () => {
-    if (!projectPath || !commitMsg.trim()) return;
+    if (!projectPath || !commitMsg.trim() || stagedCount === 0) return;
     try {
-      const result = await api.gitCommit(projectPath, commitMsg.trim());
+      const filesToStage = stagedCount === changes.length ? undefined : Array.from(stagedFiles);
+      const result = await api.gitCommit(projectPath, commitMsg.trim(), filesToStage);
       setCommitMsg('');
       setCommitFeedback(result.hash.slice(0, 7));
       setTimeout(() => setCommitFeedback(null), 3000);
@@ -758,17 +828,20 @@ export function RightPanel() {
               <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 14px 6px' }}>
                 <div className="flex items-center" style={{ gap: 6 }}>
                   <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 700 }}>Changes</span>
-                  <SquareCheck size={12} style={{ color: '#E5A54B' }} />
-                  <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>{changes.length}/{changes.length}</span>
+                  <StyledCheckbox
+                    checked={stagedCount === changes.length && changes.length > 0}
+                    onChange={toggleAllStaged}
+                    color="#E5A54B"
+                  />
+                  <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>{stagedCount}/{changes.length}</span>
                 </div>
                 <span style={{ color: '#E5A54B', fontSize: 11, cursor: 'pointer' }}>Revert all</span>
               </div>
 
-              {/* file list (scrollable) */}
-              <div className="shrink-0 overflow-y-auto" style={{ maxHeight: '40%', padding: '0 8px' }}>
+              {/* file list (scrollable, resizable) */}
+              <div className="shrink-0 overflow-y-auto" style={{ height: fileListHeight, padding: '0 8px' }}>
                 {changes.map((file) => {
                   const statusColor = statusColors[file.status] ?? 'var(--cb-text-dim)';
-                  const ftl = fileTypeLabel(file.path);
                   const fileName = file.path.includes('/') ? file.path.split('/').pop() : file.path;
                   const dirPath = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/') + 1) : '';
 
@@ -789,12 +862,16 @@ export function RightPanel() {
                         cursor: 'pointer', borderRadius: 3,
                       }}
                     >
-                      <SquareCheck size={12} style={{ color: statusColor, flexShrink: 0 }} />
+                      <StyledCheckbox
+                        checked={stagedFiles.has(file.path)}
+                        onChange={() => toggleStaged(file.path)}
+                        color={statusColor}
+                      />
                       <span style={{ color: statusColor, fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
                         {file.status}
                       </span>
-                      <span style={{ color: ftl.color, fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 18, textAlign: 'center', flexShrink: 0 }}>
-                        {ftl.text}
+                      <span style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileTypeIcon filename={file.path} size={12} />
                       </span>
                       {dirPath && <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dirPath}</span>}
                       <span style={{ color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -813,8 +890,22 @@ export function RightPanel() {
                 )}
               </div>
 
+              {/* Resize handle */}
+              <div
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  diffDragRef.current = { startY: e.clientY, startH: fileListHeight };
+                  document.body.style.cursor = 'row-resize';
+                  document.body.style.userSelect = 'none';
+                }}
+                className="shrink-0 group"
+                style={{ height: 3, cursor: 'row-resize', position: 'relative', background: 'var(--cb-border)' }}
+              >
+                <div className="absolute inset-0 transition-colors duration-100 group-hover:bg-[#E5A54B]" />
+              </div>
+
               {/* Inline diff preview — takes remaining vertical space */}
-              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ borderTop: '1px solid var(--cb-border)', minHeight: 0, overflow: 'hidden' }}>
+              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ minHeight: 0, overflow: 'hidden' }}>
                 {diffLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <span style={{ color: '#4B5563', fontSize: 11 }}>// loading diff...</span>
@@ -875,7 +966,7 @@ export function RightPanel() {
               {/* header */}
               <div className="flex items-center justify-between">
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 700 }}>Commit</span>
-                <span style={{ color: 'var(--cb-text-muted)', fontSize: 10 }}>{changes.length} files selected</span>
+                <span style={{ color: 'var(--cb-text-muted)', fontSize: 10 }}>{stagedCount} files selected</span>
               </div>
 
               {/* commit message input */}

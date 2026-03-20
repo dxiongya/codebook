@@ -135,7 +135,39 @@ impl HubRouter {
             Some(p) => p,
             None => return HubResponse::error(&req.request_id, "path required"),
         };
-        match self.db.create_project(name, path) {
+
+        // Security: validate path
+        let canonical = match std::fs::canonicalize(path) {
+            Ok(p) => p,
+            Err(_) => return HubResponse::error(&req.request_id, "Path does not exist"),
+        };
+        if !canonical.is_dir() {
+            return HubResponse::error(&req.request_id, "Path is not a directory");
+        }
+        let path_str = canonical.to_string_lossy();
+        // Block sensitive system paths
+        let blocked = ["/etc", "/System", "/usr", "/var", "/private/etc", "/bin", "/sbin"];
+        for b in &blocked {
+            if path_str.starts_with(b) {
+                return HubResponse::error(&req.request_id, "Access to system directories is not allowed");
+            }
+        }
+        // Block hidden dirs in home (ssh, gnupg, etc)
+        if let Some(home) = std::env::var("HOME").ok() {
+            let rel = path_str.strip_prefix(&home).unwrap_or(&path_str);
+            if rel.starts_with("/.ssh") || rel.starts_with("/.gnupg") || rel.starts_with("/.config/secret") {
+                return HubResponse::error(&req.request_id, "Access to sensitive directories is not allowed");
+            }
+        }
+
+        // Notify desktop UI
+        let _ = self.app.emit("session-message-remote", serde_json::json!({
+            "type": "project_created",
+            "name": name,
+            "path": path_str.as_ref(),
+        }));
+
+        match self.db.create_project(name, &path_str) {
             Ok(project) => HubResponse::ok(&req.request_id, serde_json::to_value(&project).unwrap()),
             Err(e) => HubResponse::error(&req.request_id, &e.to_string()),
         }
@@ -246,8 +278,8 @@ impl HubRouter {
             Err(e) => return HubResponse::error(&req.request_id, &format!("Failed to save message: {}", e)),
         };
 
-        // Notify desktop UI about the new user message (so it syncs in real-time)
-        let _ = self.app.emit("session-message", serde_json::json!({
+        // Notify desktop UI only (not broadcast to WS clients)
+        let _ = self.app.emit("session-message-remote", serde_json::json!({
             "session_id": session_id,
             "message": {
                 "id": saved_msg.id,
@@ -433,7 +465,10 @@ impl HubRouter {
             Some(m) => m,
             None => return HubResponse::error(&req.request_id, "message required"),
         };
-        match crate::git::git_commit(path, message) {
+        let files: Option<Vec<String>> = req.payload.get("files")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect());
+        match crate::git::git_commit(path, message, files) {
             Ok(result) => HubResponse::ok(&req.request_id, serde_json::to_value(&result).unwrap()),
             Err(e) => HubResponse::error(&req.request_id, &e.to_string()),
         }

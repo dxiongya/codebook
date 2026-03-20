@@ -540,6 +540,14 @@ export function CenterPanel() {
   } = useAppStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
+  // Auto-scroll to bottom when session changes
+  useEffect(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      setShowScrollToBottom(false);
+    }, 100);
+  }, [activeSessionId]);
+
   // Auto-scroll on new messages or streaming blocks (only if near bottom)
   useEffect(() => {
     const el = scrollContainerRef.current;

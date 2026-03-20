@@ -821,8 +821,8 @@ fn git_diff_file(project_path: String, file_path: String) -> Result<git::DiffRes
 }
 
 #[tauri::command]
-fn git_commit(project_path: String, message: String) -> Result<git::GitCommitResult, String> {
-    git::git_commit(&project_path, &message)
+fn git_commit(project_path: String, message: String, files: Option<Vec<String>>) -> Result<git::GitCommitResult, String> {
+    git::git_commit(&project_path, &message, files)
 }
 
 #[tauri::command]

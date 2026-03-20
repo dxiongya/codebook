@@ -257,16 +257,36 @@ pub fn git_diff_file(project_path: &str, file_path: &str) -> Result<DiffResult, 
     })
 }
 
-pub fn git_commit(project_path: &str, message: &str) -> Result<GitCommitResult, String> {
-    // Stage all changes
-    let add_output = Command::new("git")
-        .args(["-C", project_path, "add", "-A"])
-        .output()
-        .map_err(|e| format!("Failed to run git add: {}", e))?;
+pub fn git_commit(project_path: &str, message: &str, files: Option<Vec<String>>) -> Result<GitCommitResult, String> {
+    // Reset staging area first
+    let _ = Command::new("git")
+        .args(["-C", project_path, "reset", "HEAD"])
+        .output();
 
-    if !add_output.status.success() {
-        let stderr = String::from_utf8_lossy(&add_output.stderr);
-        return Err(format!("git add failed: {}", stderr));
+    // Stage selected files or all
+    match &files {
+        Some(paths) if !paths.is_empty() => {
+            let mut args = vec!["-C".to_string(), project_path.to_string(), "add".to_string(), "--".to_string()];
+            args.extend(paths.iter().cloned());
+            let add_output = Command::new("git")
+                .args(&args)
+                .output()
+                .map_err(|e| format!("Failed to run git add: {}", e))?;
+            if !add_output.status.success() {
+                let stderr = String::from_utf8_lossy(&add_output.stderr);
+                return Err(format!("git add failed: {}", stderr));
+            }
+        }
+        _ => {
+            let add_output = Command::new("git")
+                .args(["-C", project_path, "add", "-A"])
+                .output()
+                .map_err(|e| format!("Failed to run git add: {}", e))?;
+            if !add_output.status.success() {
+                let stderr = String::from_utf8_lossy(&add_output.stderr);
+                return Err(format!("git add failed: {}", stderr));
+            }
+        }
     }
 
     // Commit

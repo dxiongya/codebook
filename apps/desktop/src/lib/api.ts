@@ -69,8 +69,8 @@ export const gitStatus = (projectPath: string) =>
 export const gitDiffFile = (projectPath: string, filePath: string) =>
   invoke<DiffResult>('git_diff_file', { projectPath, filePath });
 
-export const gitCommit = (projectPath: string, message: string) =>
-  invoke<GitCommitResult>('git_commit', { projectPath, message });
+export const gitCommit = (projectPath: string, message: string, files?: string[]) =>
+  invoke<GitCommitResult>('git_commit', { projectPath, message, files: files ?? null });
 
 export const gitPush = (projectPath: string) =>
   invoke<void>('git_push', { projectPath });
