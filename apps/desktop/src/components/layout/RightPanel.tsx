@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { DiffEditor, Editor } from '@monaco-editor/react';
-import { GitBranch, Folder, FolderOpen, Settings as SettingsIcon, Sparkles, Check, ArrowUp, File, FileJson, FileText, FileCode, Image, Hash, Plus } from 'lucide-react';
+import { GitBranch, GitCommitHorizontal, GitPullRequest, GitMerge, LayoutGrid, Folder, FolderOpen, Sparkles, ArrowUp, ArrowDown, RefreshCw, History, ChevronDown, File, FileJson, FileText, FileCode, Image, Hash, Plus, Undo2, SquareCheck } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import * as api from '../../lib/api';
 import type { FileChange, DiffResult, FileEntry, FileContent } from '../../types';
+
+type GitSubTab = 'commit' | 'update' | 'pr' | 'worktree';
 
 const statusColors: Record<string, string> = {
   M: '#F59E0B',
@@ -13,25 +15,25 @@ const statusColors: Record<string, string> = {
 };
 
 function fileTypeLabel(filename: string): { text: string; color: string } {
-  if (filename.endsWith('/')) return { text: '\uD83D\uDCC1', color: '#6B6560' };
+  if (filename.endsWith('/')) return { text: '\uD83D\uDCC1', color: 'var(--cb-text-dim)' };
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, { text: string; color: string }> = {
     ts: { text: 'TS', color: '#3178C6' },
     tsx: { text: 'TS', color: '#3178C6' },
     js: { text: 'JS', color: '#F7DF1E' },
     jsx: { text: 'JS', color: '#F7DF1E' },
-    json: { text: '{}', color: '#6B6560' },
+    json: { text: '{}', color: 'var(--cb-text-dim)' },
     css: { text: '#', color: '#A78BFA' },
     scss: { text: '#', color: '#A78BFA' },
     md: { text: '\u2193', color: '#60A5FA' },
     html: { text: '<>', color: '#E34F26' },
     py: { text: 'PY', color: '#3572A5' },
     rs: { text: 'RS', color: '#DEA584' },
-    toml: { text: '\u2261', color: '#6B6560' },
-    yaml: { text: '\u2261', color: '#6B6560' },
-    yml: { text: '\u2261', color: '#6B6560' },
-    lock: { text: '\u2261', color: '#6B6560' },
-    log: { text: '\u2261', color: '#6B6560' },
+    toml: { text: '\u2261', color: 'var(--cb-text-dim)' },
+    yaml: { text: '\u2261', color: 'var(--cb-text-dim)' },
+    yml: { text: '\u2261', color: 'var(--cb-text-dim)' },
+    lock: { text: '\u2261', color: 'var(--cb-text-dim)' },
+    log: { text: '\u2261', color: 'var(--cb-text-dim)' },
     pen: { text: '\u25C6', color: '#E5A54B' },
     png: { text: 'IMG', color: '#4ADE80' },
     jpg: { text: 'IMG', color: '#4ADE80' },
@@ -39,19 +41,21 @@ function fileTypeLabel(filename: string): { text: string; color: string } {
     gif: { text: 'IMG', color: '#4ADE80' },
     webp: { text: 'IMG', color: '#4ADE80' },
   };
-  return map[ext] ?? { text: '\u00B7', color: '#6B6560' };
+  return map[ext] ?? { text: '\u00B7', color: 'var(--cb-text-dim)' };
 }
 
 const beforeMount = (monaco: any) => {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-primary').trim() || '#1C1917';
+  const bgCode = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-code').trim() || '#171412';
   monaco.editor.defineTheme('codebook-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
     colors: {
-      'editor.background': '#1C1917',
+      'editor.background': bgCode,
       'editor.lineHighlightBackground': '#1F1F1F',
       'editorLineNumber.foreground': '#4B5563',
-      'editorGutter.background': '#1C1917',
+      'editorGutter.background': bgCode,
       'diffEditor.insertedTextBackground': '#10B98118',
       'diffEditor.removedTextBackground': '#EF444418',
       'diffEditor.insertedLineBackground': '#10B98110',
@@ -375,7 +379,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                       borderRadius: 4,
                       background: '#1F1B17',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = '#2A2520'; e.currentTarget.style.borderColor = '#E5A54B'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--cb-border)'; e.currentTarget.style.borderColor = '#E5A54B'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = '#1F1B17'; e.currentTarget.style.borderColor = '#3A3530'; }}
                   >
                     <Plus size={10} />
@@ -391,7 +395,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={10}
                   style={{
-                    width: '100%', background: '#171412', border: '1px solid #E5A54B',
+                    width: '100%', background: 'var(--cb-bg-code)', border: '1px solid #E5A54B',
                     padding: 10, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                     color: '#FAFAFA', resize: 'vertical', outline: 'none',
                   }}
@@ -403,7 +407,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
               </div>
             ) : (
               <div style={{
-                background: '#171412', border: `1px solid ${hasContent ? '#2A2520' : '#2A2520'}`, padding: 10,
+                background: 'var(--cb-bg-code)', border: `1px solid ${hasContent ? 'var(--cb-border)' : 'var(--cb-border)'}`, padding: 10,
                 fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                 color: hasContent ? '#FAFAFA' : '#4B5563',
                 maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap',
@@ -609,7 +613,7 @@ export function RightPanel() {
     return (
       <div
         className="flex flex-col h-full items-center justify-center"
-        style={{ background: '#1C1917', borderLeft: '1px solid #2A2520' }}
+        style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
       >
         <span style={{ color: '#4B5563', fontSize: 12 }}>// no project selected</span>
       </div>
@@ -619,164 +623,198 @@ export function RightPanel() {
   return (
     <div
       className="flex flex-col h-full"
-      style={{ background: '#1C1917', borderLeft: '1px solid #2A2520' }}
+      style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
     >
-      {/* tabs */}
-      <div className="flex shrink-0" style={{ borderBottom: '1px solid #2A2520' }}>
+      {/* tabs — pill style (design: h44, gap 4) */}
+      <div className="flex items-center shrink-0" style={{ height: 40, padding: '0 12px', gap: 2, borderBottom: '1px solid var(--cb-border)' }}>
         {([
-          { key: 'git' as const, label: 'Git', icon: <GitBranch size={13} /> },
-          { key: 'files' as const, label: 'Files', icon: <Folder size={13} /> },
-          { key: 'config' as const, label: 'Config', icon: <SettingsIcon size={13} /> },
-        ]).map(({ key, label, icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              height: 42, padding: '0 20px',
-              fontSize: 12,
-              fontWeight: activeTab === key ? 500 : 400,
-              color: activeTab === key ? '#E5A54B' : '#6B7280',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2px solid ${activeTab === key ? '#E5A54B' : 'transparent'}`,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {icon}
-            {label}
-          </button>
-        ))}
+          { key: 'git' as const, label: 'Git', icon: <GitBranch size={12} /> },
+          { key: 'files' as const, label: 'Files', icon: <Folder size={12} /> },
+        ]).map(({ key, label, icon }) => {
+          const isActive = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                padding: '4px 12px',
+                fontSize: 11,
+                fontWeight: isActive ? 500 : 400,
+                color: isActive ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
+                background: isActive ? 'var(--cb-bg-active)' : 'transparent',
+                border: isActive ? '1px solid var(--cb-border)' : '1px solid transparent',
+                borderRadius: 5,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              {icon}
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === 'git' ? (
         gitError ? (
           <div className="flex-1 flex items-center justify-center">
-            <span style={{ color: '#4B5563', fontSize: 12 }}>// {gitError}</span>
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>// {gitError}</span>
           </div>
         ) : (
           <>
-            {/* branch + repo selector */}
-            <div className="shrink-0" style={{ borderBottom: '1px solid #2A2520' }}>
-              {/* Repo selector (if multiple git repos found) */}
-              {gitRepos.length > 1 && (
-                <div className="flex items-center" style={{ padding: '6px 16px', gap: 6, borderBottom: '1px solid #2A2520' }}>
-                  <Folder size={12} style={{ color: '#6B6560' }} />
-                  <select
-                    value={activeRepoPath}
-                    onChange={(e) => { setActiveRepoPath(e.target.value); }}
-                    style={{
-                      appearance: 'none', background: 'transparent', border: 'none',
-                      color: '#9C9690', fontSize: 11, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
-                    }}
-                  >
-                    {gitRepos.map((r) => (
-                      <option key={r.path} value={r.path}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {/* Branch selector */}
-              <div
-                className="flex items-center"
-                style={{ padding: '8px 16px', gap: 6, position: 'relative' }}
-              >
-                <GitBranch size={13} style={{ color: '#E5A54B', flexShrink: 0 }} />
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={branch}
-                    onChange={async (e) => {
-                      const newBranch = e.target.value;
-                      try {
-                        await api.gitCheckout(effectiveGitPath, newBranch);
-                        setBranch(newBranch);
-                        fetchGitData();
-                      } catch (err: any) {
-                        console.error('checkout failed:', err);
-                      }
-                    }}
-                    style={{
-                      appearance: 'none', WebkitAppearance: 'none',
-                      background: 'transparent', border: 'none',
-                      padding: '0 16px 0 0',
-                      color: '#E8E4E0', fontSize: 12, fontWeight: 500,
-                      fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
-                    }}
-                  >
-                    {[...new Set([...(branch ? [branch] : []), ...branches])].map((b) => (
-                      <option key={b} value={b} style={{ background: '#1C1917' }}>{b}</option>
-                    ))}
-                  </select>
-                  <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', color: '#6B6560', fontSize: 10, pointerEvents: 'none' }}>▾</span>
-                </div>
+            {/* branch selector row (design: h32) */}
+            <div className="flex items-center shrink-0" style={{ padding: '6px 14px', gap: 6 }}>
+              <GitBranch size={13} style={{ color: '#E5A54B', flexShrink: 0 }} />
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={branch}
+                  onChange={async (e) => {
+                    const newBranch = e.target.value;
+                    try {
+                      await api.gitCheckout(effectiveGitPath, newBranch);
+                      setBranch(newBranch);
+                      fetchGitData();
+                    } catch (err: any) {
+                      console.error('checkout failed:', err);
+                    }
+                  }}
+                  style={{
+                    appearance: 'none', WebkitAppearance: 'none',
+                    background: 'transparent', border: 'none',
+                    padding: '0 16px 0 0',
+                    color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 600,
+                    fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                  }}
+                >
+                  {[...new Set([...(branch ? [branch] : []), ...branches])].map((b) => (
+                    <option key={b} value={b} style={{ background: 'var(--cb-bg-primary)' }}>{b}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-text-muted)', pointerEvents: 'none' }} />
               </div>
             </div>
 
-            {/* changes + diff area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* file list (scrollable, shrinkable) */}
-              <div className="shrink-0 overflow-y-auto" style={{ maxHeight: '40%', padding: '8px 0' }}>
-                {/* header */}
-                <div className="flex items-center justify-between" style={{ padding: '6px 16px' }}>
-                  <div className="flex items-center" style={{ gap: 8 }}>
-                    <span style={{ color: '#E8E4E0', fontSize: 11, fontWeight: 500 }}>Changes</span>
-                    <span style={{ color: '#6B6560', fontSize: 10, background: '#2A2520', borderRadius: 4, padding: '1px 6px' }}>{changes.length}</span>
-                  </div>
-                  <span
-                    style={{ color: '#EF4444', fontSize: 10, cursor: 'pointer' }}
-                    onClick={() => {/* revert all - placeholder */}}
-                  >
-                    Revert all
-                  </span>
-                </div>
+            {/* action icons row (design: h28) */}
+            <div className="flex items-center justify-between shrink-0" style={{ padding: '2px 14px 6px' }}>
+              <div className="flex items-center" style={{ gap: 10 }}>
+                <RefreshCw size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={fetchGitData} />
+                <ArrowDown size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} />
+                <ArrowUp size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={handlePush} />
+                <History size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} />
+              </div>
+              {gitRepos.length > 1 && (
+                <select
+                  value={activeRepoPath}
+                  onChange={(e) => setActiveRepoPath(e.target.value)}
+                  style={{
+                    appearance: 'none', background: 'transparent', border: 'none',
+                    color: '#E5A54B', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                  }}
+                >
+                  {gitRepos.map((r) => (
+                    <option key={r.path} value={r.path}>{r.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-                {/* file items — design: padding [6,16], gap 8, height 28px */}
-                {changes.map((file) => (
-                  <div
-                    key={file.path}
-                    className="flex items-center"
-                    draggable
-                    onDragStart={(e) => {
-                      const fullPath = projectPath ? `${projectPath}/${file.path}` : file.path;
-                      e.dataTransfer.setData('text/plain', fullPath);
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    onClick={() => handleFileClick(file.path)}
+            {/* git sub-tabs (design: h37, font 11) */}
+            <div className="flex items-center shrink-0" style={{ padding: '4px 12px', gap: 2, borderBottom: '1px solid var(--cb-border)' }}>
+              {([
+                { key: 'commit' as GitSubTab, label: 'Commit', icon: <GitCommitHorizontal size={11} /> },
+                { key: 'update' as GitSubTab, label: 'Update', icon: <GitPullRequest size={11} /> },
+                { key: 'pr' as GitSubTab, label: 'PR', icon: <GitMerge size={11} /> },
+                { key: 'worktree' as GitSubTab, label: 'Worktree', icon: <LayoutGrid size={11} /> },
+              ]).map(({ key, label, icon }) => {
+                const active = useAppStore.getState().gitSubTab === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => useAppStore.getState().setGitSubTab(key)}
                     style={{
-                      padding: '6px 16px',
-                      gap: 8,
-                      background: selectedFile === file.path ? '#1F1F1F' : 'transparent',
-                      cursor: 'pointer',
+                      padding: '4px 10px', fontSize: 11,
+                      fontWeight: active ? 500 : 400,
+                      color: active ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
+                      background: active ? 'var(--cb-bg-active)' : 'transparent',
+                      border: active ? '1px solid var(--cb-border)' : '1px solid transparent',
+                      borderRadius: 5,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 4,
                     }}
                   >
-                    <span style={{ color: statusColors[file.status] ?? '#6B6560', fontSize: 11, fontWeight: 600, width: 14, textAlign: 'center', flexShrink: 0 }}>
-                      {file.status}
-                    </span>
-                    <span style={{ color: fileTypeLabel(file.path).color, fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 22, textAlign: 'center', flexShrink: 0 }}>
-                      {fileTypeLabel(file.path).text}
-                    </span>
-                    <span style={{ color: '#E8E4E0', fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {file.path}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <span style={{ color: '#4ADE80', fontSize: 10 }}>+{file.additions}</span>
-                      {file.deletions > 0 && <span style={{ color: '#EF4444', fontSize: 10 }}>-{file.deletions}</span>}
+                    {icon}{label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Commit sub-tab content */}
+            {useAppStore.getState().gitSubTab === 'commit' && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* changes header (design: h36) */}
+              <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 14px 6px' }}>
+                <div className="flex items-center" style={{ gap: 6 }}>
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 700 }}>Changes</span>
+                  <SquareCheck size={12} style={{ color: '#E5A54B' }} />
+                  <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>{changes.length}/{changes.length}</span>
+                </div>
+                <span style={{ color: '#E5A54B', fontSize: 11, cursor: 'pointer' }}>Revert all</span>
+              </div>
+
+              {/* file list (scrollable) */}
+              <div className="shrink-0 overflow-y-auto" style={{ maxHeight: '40%', padding: '0 8px' }}>
+                {changes.map((file) => {
+                  const statusColor = statusColors[file.status] ?? 'var(--cb-text-dim)';
+                  const ftl = fileTypeLabel(file.path);
+                  const fileName = file.path.includes('/') ? file.path.split('/').pop() : file.path;
+                  const dirPath = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/') + 1) : '';
+
+                  return (
+                    <div
+                      key={file.path}
+                      className="flex items-center"
+                      draggable
+                      onDragStart={(e) => {
+                        const fullPath = projectPath ? `${projectPath}/${file.path}` : file.path;
+                        e.dataTransfer.setData('text/plain', fullPath);
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      onClick={() => handleFileClick(file.path)}
+                      style={{
+                        padding: '4px 6px', gap: 6,
+                        background: selectedFile === file.path ? 'var(--cb-bg-active)' : 'transparent',
+                        cursor: 'pointer', borderRadius: 3,
+                      }}
+                    >
+                      <SquareCheck size={12} style={{ color: statusColor, flexShrink: 0 }} />
+                      <span style={{ color: statusColor, fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                        {file.status}
+                      </span>
+                      <span style={{ color: ftl.color, fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 18, textAlign: 'center', flexShrink: 0 }}>
+                        {ftl.text}
+                      </span>
+                      {dirPath && <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dirPath}</span>}
+                      <span style={{ color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {fileName}
+                      </span>
+                      <span style={{ color: '#4ADE80', fontSize: 10, fontFamily: "'JetBrains Mono', monospace", flexShrink: 0 }}>
+                        +{file.additions}/{file.deletions > 0 ? `-${file.deletions}` : '-0'}
+                      </span>
+                      <Undo2 size={11} style={{ color: 'var(--cb-text-dim)', flexShrink: 0 }} />
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {changes.length === 0 && (
-                  <div style={{ padding: '6px 16px' }}>
-                    <span style={{ color: '#4B5563', fontSize: 11 }}>// no changes</span>
-                  </div>
+                  <div style={{ padding: '12px 8px', color: 'var(--cb-text-dim)', fontSize: 11 }}>// no changes</div>
                 )}
               </div>
 
               {/* Inline diff preview — takes remaining vertical space */}
-              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ borderTop: '1px solid #2A2520', minHeight: 0, overflow: 'hidden' }}>
+              <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ borderTop: '1px solid var(--cb-border)', minHeight: 0, overflow: 'hidden' }}>
                 {diffLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <span style={{ color: '#4B5563', fontSize: 11 }}>// loading diff...</span>
@@ -784,7 +822,7 @@ export function RightPanel() {
                 ) : diffResult ? (
                   <>
                     {/* diff header with expand button */}
-                    <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#171412' }}>
+                    <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: 'var(--cb-bg-code)' }}>
                       <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>{diffResult.file_path}</span>
                       <span
                         onClick={() => setFullscreenDiff(diffResult)}
@@ -825,71 +863,56 @@ export function RightPanel() {
                   </>
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <span style={{ color: '#6B6560', fontSize: 11 }}>
+                    <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>
                       {selectedFile ? 'No diff available' : 'Select a file to view diff'}
                     </span>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* commit feedback */}
-            {commitFeedback && (
-              <div
-                className="shrink-0"
-                style={{
-                  padding: '4px 16px',
-                  fontSize: 10,
-                  color: commitFeedback.startsWith('error') ? '#EF4444' : '#E5A54B',
-                  background: '#171412',
-                }}
-              >
-                {commitFeedback.startsWith('error') ? commitFeedback : `committed ${commitFeedback}`}
+            {/* commit section (design: padding 12x16, gap 10) */}
+            <div className="flex flex-col shrink-0" style={{ padding: '10px 14px', gap: 8, borderTop: '1px solid var(--cb-border)' }}>
+              {/* header */}
+              <div className="flex items-center justify-between">
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 700 }}>Commit</span>
+                <span style={{ color: 'var(--cb-text-muted)', fontSize: 10 }}>{changes.length} files selected</span>
               </div>
-            )}
 
-            {/* push feedback */}
-            {pushFeedback && (
-              <div
-                className="shrink-0"
-                style={{
-                  padding: '4px 16px',
-                  fontSize: 10,
-                  color: pushFeedback.startsWith('error') ? '#EF4444' : '#E5A54B',
-                  background: '#171412',
-                }}
-              >
-                {pushFeedback}
-              </div>
-            )}
-
-            {/* commit bar */}
-            <div
-              className="flex flex-col shrink-0"
-              style={{ padding: '12px 16px', gap: 8, borderTop: '1px solid #2A2520' }}
-            >
-              <div className="flex items-center" style={{ padding: '7px 10px', border: '1px solid #2A2520', borderRadius: 6, background: 'transparent' }}>
+              {/* commit message input */}
+              <div style={{ padding: '6px 10px', border: '1px solid var(--cb-border)', borderRadius: 6, background: 'var(--cb-bg-elevated)' }}>
                 <input
                   type="text"
                   placeholder="commit message..."
                   value={commitMsg}
                   onChange={(e) => setCommitMsg(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCommit();
-                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCommit(); }}
                   style={{
                     background: 'transparent', border: 'none', outline: 'none',
-                    color: '#E8E4E0', fontSize: 11, width: '100%', fontFamily: 'inherit',
+                    color: 'var(--cb-text-primary)', fontSize: 11, width: '100%', fontFamily: 'inherit',
                   }}
                 />
               </div>
+
+              {/* feedback */}
+              {commitFeedback && (
+                <div style={{ fontSize: 11, color: commitFeedback.startsWith('error') ? '#EF4444' : '#E5A54B' }}>
+                  {commitFeedback.startsWith('error') ? commitFeedback : `✓ committed ${commitFeedback}`}
+                </div>
+              )}
+              {pushFeedback && (
+                <div style={{ fontSize: 11, color: pushFeedback.startsWith('error') ? '#EF4444' : '#E5A54B' }}>
+                  {pushFeedback}
+                </div>
+              )}
+
+              {/* action buttons */}
               <div className="flex" style={{ gap: 6 }}>
                 <button
                   onClick={() => {/* generate - placeholder */}}
                   style={{
-                    padding: '6px 10px', background: 'transparent', border: '1px solid #2A2520',
-                    color: '#9C9690', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', background: 'transparent', border: '1px solid var(--cb-border)',
+                    color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
                   <Sparkles size={11} style={{ color: '#E5A54B' }} />
@@ -898,20 +921,20 @@ export function RightPanel() {
                 <button
                   onClick={handleCommit}
                   style={{
-                    padding: '6px 12px', background: '#E5A54B', color: '#1C1917',
-                    fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', background: 'transparent', border: '1px solid var(--cb-border)',
+                    color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
-                  <Check size={11} />
+                  <GitCommitHorizontal size={11} />
                   Commit
                 </button>
                 <button
                   onClick={handlePush}
                   style={{
-                    padding: '6px 10px', background: 'transparent', border: '1px solid #2A2520',
-                    color: '#9C9690', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit',
-                    borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', background: '#E5A54B',
+                    color: 'var(--cb-bg-primary)', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
                   <ArrowUp size={11} />
@@ -919,6 +942,51 @@ export function RightPanel() {
                 </button>
               </div>
             </div>
+            </div>
+            )}
+
+            {/* Update sub-tab */}
+            {useAppStore.getState().gitSubTab === 'update' && (
+              <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
+                <div className="flex items-center" style={{ gap: 8, padding: '12px 14px', borderRadius: 8, background: 'var(--cb-bg-elevated)', marginBottom: 16 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ADE80' }} />
+                  <span style={{ color: '#4ADE80', fontSize: 12 }}>Up to date with origin/{branch || 'main'}</span>
+                </div>
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 700 }}>Recent Pulls</span>
+                <div style={{ marginTop: 12, color: 'var(--cb-text-dim)', fontSize: 12 }}>No recent pull history</div>
+              </div>
+            )}
+
+            {/* PR sub-tab */}
+            {useAppStore.getState().gitSubTab === 'pr' && (
+              <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
+                <div className="flex items-center" style={{ gap: 8, padding: '12px 14px', borderRadius: 8, background: 'var(--cb-bg-elevated)', border: '1px solid var(--cb-border)', marginBottom: 16 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ADE80' }} />
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Create Pull Request</span>
+                </div>
+                <div style={{ color: 'var(--cb-text-dim)', fontSize: 12, lineHeight: 1.6 }}>
+                  PR creation will be available in a future update. For now, use the Git CLI or your Git provider's web interface.
+                </div>
+              </div>
+            )}
+
+            {/* Worktree sub-tab */}
+            {useAppStore.getState().gitSubTab === 'worktree' && (
+              <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 700 }}>Active Worktrees</span>
+                <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid #E5A54B', background: 'var(--cb-bg-active)' }}>
+                  <div className="flex items-center" style={{ gap: 8 }}>
+                    <GitBranch size={14} style={{ color: '#E5A54B' }} />
+                    <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 600, flex: 1 }}>{branch || 'main'}</span>
+                    <span style={{ color: '#E5A54B', fontSize: 10, padding: '2px 6px', background: '#E5A54B20', borderRadius: 4 }}>active</span>
+                  </div>
+                  <div style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>{projectPath}</div>
+                </div>
+                <div style={{ marginTop: 12, color: 'var(--cb-text-dim)', fontSize: 12 }}>
+                  Worktree management will be available in a future update.
+                </div>
+              </div>
+            )}
           </>
         )
       ) : activeTab === 'files' ? (
@@ -957,9 +1025,9 @@ export function RightPanel() {
 
           {/* file viewer — Monaco editor */}
           {viewingFile && (
-            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid #2A2520', minHeight: 0 }}>
+            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid var(--cb-border)', minHeight: 0 }}>
               {/* file header */}
-              <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: '#171412' }}>
+              <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: 'var(--cb-bg-code)' }}>
                 <div className="flex items-center" style={{ gap: 8 }}>
                   <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>
                     {viewingFile.path.split('/').pop()}
@@ -1021,11 +1089,11 @@ export function RightPanel() {
           onClick={() => setFullscreenFile(null)}
         >
           <div
-            style={{ flex: 1, margin: 16, background: '#1C1917', border: '1px solid #2A2520', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            style={{ flex: 1, margin: 16, background: 'var(--cb-bg-primary)', border: '1px solid var(--cb-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* top bar */}
-            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid #2A2520', background: '#171412' }}>
+            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid var(--cb-border)', background: 'var(--cb-bg-code)' }}>
               <div className="flex items-center" style={{ gap: 8 }}>
                 <span style={{ color: '#E5A54B', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
                 <span style={{ color: '#FAFAFA', fontSize: 12, fontWeight: 600 }}>{fullscreenFile.path.split('/').pop()}</span>
@@ -1041,7 +1109,7 @@ export function RightPanel() {
             {/* body: sidebar + editor */}
             <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
               {/* file sidebar */}
-              <div style={{ width: 220, borderRight: '1px solid #2A2520', overflowY: 'auto', padding: '8px 0', flexShrink: 0 }}>
+              <div style={{ width: 220, borderRight: '1px solid var(--cb-border)', overflowY: 'auto', padding: '8px 0', flexShrink: 0 }}>
                 <div style={{ padding: '4px 12px 6px', color: '#9CA3AF', fontSize: 10, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</div>
                 {explorerFiles.map((entry) => (
                   <FullscreenFileTreeNode
@@ -1112,20 +1180,20 @@ export function RightPanel() {
             onClick={() => setFullscreenDiff(null)}
           >
             <div
-              style={{ flex: 1, margin: 24, background: '#1C1917', border: '1px solid #2A2520', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+              style={{ flex: 1, margin: 24, background: 'var(--cb-bg-primary)', border: '1px solid var(--cb-border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* modal header with prev/next navigation */}
               <div
                 className="flex items-center justify-between shrink-0"
-                style={{ padding: '8px 20px', borderBottom: '1px solid #2A2520', background: '#171412' }}
+                style={{ padding: '8px 20px', borderBottom: '1px solid var(--cb-border)', background: 'var(--cb-bg-code)' }}
               >
                 {/* left: navigation + filename */}
                 <div className="flex items-center" style={{ gap: 10 }}>
                   <button
                     onClick={() => hasPrev && navTo(currentIdx - 1)}
                     style={{
-                      background: 'transparent', border: '1px solid #2A2520', color: hasPrev ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasPrev ? '#FAFAFA' : '#4B5563',
                       padding: '4px 8px', cursor: hasPrev ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >
@@ -1140,7 +1208,7 @@ export function RightPanel() {
                   <button
                     onClick={() => hasNext && navTo(currentIdx + 1)}
                     style={{
-                      background: 'transparent', border: '1px solid #2A2520', color: hasNext ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasNext ? '#FAFAFA' : '#4B5563',
                       padding: '4px 8px', cursor: hasNext ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >

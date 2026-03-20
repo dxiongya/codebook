@@ -5,6 +5,8 @@ import { RightPanel } from './components/layout/RightPanel';
 import { TopHeader } from './components/layout/TopHeader';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { useAppStore } from './stores/useAppStore';
+import { applyTheme, DEFAULT_THEME } from './lib/theme';
+import * as api from './lib/api';
 
 type DragTarget = 'left' | 'right' | null;
 
@@ -21,6 +23,11 @@ export default function App() {
 
   useEffect(() => {
     useAppStore.getState().init();
+
+    // Load saved theme
+    api.getSetting('display_theme').then((v) => {
+      applyTheme(v ?? DEFAULT_THEME);
+    }).catch(() => {});
 
     const preventDrop = (e: DragEvent) => { e.preventDefault(); };
     document.addEventListener('dragover', preventDrop);
@@ -104,7 +111,7 @@ export default function App() {
       <div
         id="app-main"
         className="flex flex-col h-screen w-screen overflow-hidden"
-        style={{ background: '#1C1917', borderRadius: 10 }}
+        style={{ background: 'var(--cb-bg-primary)', borderRadius: 10 }}
       >
         {/* Top header bar */}
         <TopHeader />
@@ -124,7 +131,7 @@ export default function App() {
               <div
                 onMouseDown={(e) => onMouseDown('left', e)}
                 className="shrink-0 cursor-col-resize group"
-                style={{ width: 1, position: 'relative', background: '#2A2520' }}
+                style={{ width: 1, position: 'relative', background: 'var(--cb-border)' }}
               >
                 {/* Invisible wider hit area */}
                 <div style={{ position: 'absolute', inset: '-0 -4px', zIndex: 10 }} />
@@ -145,7 +152,7 @@ export default function App() {
               <div
                 onMouseDown={(e) => onMouseDown('right', e)}
                 className="shrink-0 cursor-col-resize group"
-                style={{ width: 1, position: 'relative', background: '#2A2520' }}
+                style={{ width: 1, position: 'relative', background: 'var(--cb-border)' }}
               >
                 {/* Invisible wider hit area */}
                 <div style={{ position: 'absolute', inset: '-0 -4px', zIndex: 10 }} />

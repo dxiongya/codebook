@@ -23,7 +23,7 @@ function StreamTimer() {
   const m = Math.floor(elapsed / 60);
   const s = elapsed % 60;
   return (
-    <span style={{ color: '#6B6560', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+    <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
       {m > 0 ? `${m}m ${s}s` : `${s}s`}
     </span>
   );
@@ -89,10 +89,10 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="flex items-center" style={{ gap: 6, lineHeight: '18px' }}>
           <span style={{ color: '#8B7BC8', fontSize: 11, fontWeight: 400 }}>Thinking</span>
-          <span style={{ color: '#6B6560', fontSize: 11, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {summary ? `**${summary}**` : ''}
           </span>
-          <span style={{ color: '#6B6560', fontSize: 10, flexShrink: 0 }}>
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, flexShrink: 0 }}>
             {block.chars > 1000 ? `${(block.chars / 1000).toFixed(1)}k` : block.chars} chars
           </span>
         </div>
@@ -100,10 +100,10 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
           <div style={{
             marginTop: 6,
             padding: '10px 12px',
-            background: '#262220',
-            border: '1px solid #2A2520',
+            background: 'var(--cb-bg-elevated)',
+            border: '1px solid var(--cb-border)',
             borderRadius: 6,
-            color: '#C8C4BE',
+            color: 'var(--cb-text-secondary)',
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
@@ -141,7 +141,7 @@ function ToolBlockView({ block }: { block: DisplayToolBlock }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="flex items-center" style={{ gap: 6, lineHeight: '18px' }}>
           <span style={{ color: toolColor(block.tool), fontSize: 11, fontWeight: 400 }}>{toolDisplayName(block.tool)}</span>
-          <span style={{ color: '#6B6560', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {desc}
           </span>
           {diffInfo && (
@@ -185,20 +185,20 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
         rehypePlugins={[rehypeHighlight]}
         components={{
           p: ({ children }) => (
-            <p style={{ color: '#C8C4BE', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>{children}</p>
+            <p style={{ color: 'var(--cb-text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>{children}</p>
           ),
           strong: ({ children }) => (
-            <strong style={{ color: '#E8E4E0', fontWeight: 600 }}>{children}</strong>
+            <strong style={{ color: 'var(--cb-text-primary)', fontWeight: 600 }}>{children}</strong>
           ),
           em: ({ children }) => (
-            <em style={{ color: '#9C9690' }}>{children}</em>
+            <em style={{ color: 'var(--cb-text-muted)' }}>{children}</em>
           ),
           code: ({ className, children, ...props }) => {
             const isInline = !className;
             if (isInline) {
               return (
                 <code style={{
-                  background: '#262220',
+                  background: 'var(--cb-bg-elevated)',
                   color: '#60A5FA',
                   padding: '2px 6px',
                   borderRadius: 4,
@@ -215,8 +215,8 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
           },
           pre: ({ children }) => (
             <pre style={{
-              background: '#171412',
-              border: '1px solid #2A2520',
+              background: 'var(--cb-bg-code)',
+              border: '1px solid var(--cb-border)',
               borderRadius: 6,
               padding: '12px 16px',
               margin: '8px 0',
@@ -227,29 +227,29 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
             }}>{children}</pre>
           ),
           ul: ({ children }) => (
-            <ul style={{ paddingLeft: 20, margin: '6px 0', color: '#9C9690', fontSize: 13, lineHeight: 1.6, listStyleType: 'disc' }}>{children}</ul>
+            <ul style={{ paddingLeft: 20, margin: '6px 0', color: 'var(--cb-text-muted)', fontSize: 13, lineHeight: 1.6, listStyleType: 'disc' }}>{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol style={{ paddingLeft: 20, margin: '6px 0', color: '#9C9690', fontSize: 13, lineHeight: 1.6, listStyleType: 'decimal' }}>{children}</ol>
+            <ol style={{ paddingLeft: 20, margin: '6px 0', color: 'var(--cb-text-muted)', fontSize: 13, lineHeight: 1.6, listStyleType: 'decimal' }}>{children}</ol>
           ),
           li: ({ children }) => (
-            <li style={{ marginBottom: 4, color: '#C8C4BE' }}>{children}</li>
+            <li style={{ marginBottom: 4, color: 'var(--cb-text-secondary)' }}>{children}</li>
           ),
           h1: ({ children }) => (
-            <h1 style={{ color: '#E8E4E0', fontSize: 18, fontWeight: 700, marginBottom: 8, marginTop: 16 }}>{children}</h1>
+            <h1 style={{ color: 'var(--cb-text-primary)', fontSize: 18, fontWeight: 700, marginBottom: 8, marginTop: 16 }}>{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 700, marginBottom: 6, marginTop: 12 }}>{children}</h2>
+            <h2 style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 700, marginBottom: 6, marginTop: 12 }}>{children}</h2>
           ),
           h3: ({ children }) => (
-            <h3 style={{ color: '#E8E4E0', fontSize: 14, fontWeight: 600, marginBottom: 4, marginTop: 10 }}>{children}</h3>
+            <h3 style={{ color: 'var(--cb-text-primary)', fontSize: 14, fontWeight: 600, marginBottom: 4, marginTop: 10 }}>{children}</h3>
           ),
           blockquote: ({ children }) => (
             <blockquote style={{
               borderLeft: '3px solid #E5A54B',
               paddingLeft: 12,
               margin: '8px 0',
-              color: '#9C9690',
+              color: 'var(--cb-text-muted)',
             }}>{children}</blockquote>
           ),
           a: ({ children, href }) => (
@@ -259,10 +259,10 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
             <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12 }}>{children}</table>
           ),
           th: ({ children }) => (
-            <th style={{ border: '1px solid #2A2520', padding: '6px 10px', textAlign: 'left', color: '#E8E4E0', background: '#171412', fontWeight: 600, fontSize: 12 }}>{children}</th>
+            <th style={{ border: '1px solid var(--cb-border)', padding: '6px 10px', textAlign: 'left', color: 'var(--cb-text-primary)', background: 'var(--cb-bg-code)', fontWeight: 600, fontSize: 12 }}>{children}</th>
           ),
           td: ({ children }) => (
-            <td style={{ border: '1px solid #2A2520', padding: '6px 10px', color: '#E8E4E0', fontSize: 12 }}>{children}</td>
+            <td style={{ border: '1px solid var(--cb-border)', padding: '6px 10px', color: 'var(--cb-text-primary)', fontSize: 12 }}>{children}</td>
           ),
         }}
       >
@@ -286,7 +286,7 @@ function BlockRenderer({ block }: { block: DisplayBlock }) {
 function ContextProgressBar({ percent }: { percent: number }) {
   const barColor = percent > 80 ? '#EF4444' : percent > 50 ? '#E5A54B' : '#4ADE80';
   return (
-    <div style={{ width: 60, height: 4, background: '#33302A', borderRadius: 2, overflow: 'hidden' }}>
+    <div style={{ width: 60, height: 4, background: 'var(--cb-bg-active)', borderRadius: 2, overflow: 'hidden' }}>
       <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
     </div>
   );
@@ -348,11 +348,11 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6, position: 'relative' }}>
             {rollbackState === 'confirm' ? (
               <div className="flex items-center" style={{ gap: 6 }}>
-                <span style={{ color: '#9C9690', fontSize: 11 }}>rollback to this point?</span>
+                <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>rollback to this point?</span>
                 <span
                   onClick={() => confirmRollback(checkpoint)}
                   style={{
-                    color: '#1C1917', background: '#E5A54B', fontSize: 11, fontWeight: 500,
+                    color: 'var(--cb-bg-primary)', background: '#E5A54B', fontSize: 11, fontWeight: 500,
                     padding: '2px 10px', cursor: 'pointer', borderRadius: 4,
                   }}
                 >
@@ -361,7 +361,7 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
                 <span
                   onClick={cancelRollback}
                   style={{
-                    color: '#9C9690', border: '1px solid #2A2520', fontSize: 11,
+                    color: 'var(--cb-text-muted)', border: '1px solid var(--cb-border)', fontSize: 11,
                     padding: '2px 10px', cursor: 'pointer', borderRadius: 4,
                   }}
                 >
@@ -377,31 +377,31 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
                 className="flex items-center"
                 style={{
                   gap: 5, cursor: 'pointer', padding: '2px 8px',
-                  background: '#262220', borderRadius: 8,
+                  background: 'var(--cb-bg-elevated)', borderRadius: 8,
                 }}
                 onMouseEnter={() => setShowDiffSummary(true)}
                 onMouseLeave={() => setShowDiffSummary(false)}
                 onClick={() => handleRollback(checkpoint)}
               >
-                <History size={12} style={{ color: '#6B6560' }} />
-                <span style={{ color: '#9C9690', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>{checkpoint.git_commit_hash?.slice(0, 7)}</span>
-                <span style={{ color: '#6B6560', fontSize: 11 }}>&middot;</span>
-                <span style={{ color: '#6B6560', fontSize: 11 }}>rollback</span>
+                <History size={12} style={{ color: 'var(--cb-text-dim)' }} />
+                <span style={{ color: 'var(--cb-text-muted)', fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>{checkpoint.git_commit_hash?.slice(0, 7)}</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>&middot;</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>rollback</span>
               </div>
             )}
             {/* Diff summary popup on hover */}
             {showDiffSummary && diffLines.length > 0 && (
               <div style={{
                 position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 50,
-                background: '#262220', border: '1px solid #2A2520', borderRadius: 8,
+                background: 'var(--cb-bg-elevated)', border: '1px solid var(--cb-border)', borderRadius: 8,
                 padding: '8px 12px', minWidth: 200, maxWidth: 360,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
               }}>
-                <div style={{ color: '#9C9690', fontSize: 10, marginBottom: 6, fontWeight: 500 }}>
+                <div style={{ color: 'var(--cb-text-muted)', fontSize: 10, marginBottom: 6, fontWeight: 500 }}>
                   Changed files
                 </div>
                 {diffLines.map((line, i) => (
-                  <div key={i} style={{ color: '#C8C4BE', fontSize: 11, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace" }}>
+                  <div key={i} style={{ color: 'var(--cb-text-secondary)', fontSize: 11, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace" }}>
                     {line}
                   </div>
                 ))}
@@ -412,9 +412,9 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
         {/* user content — right-aligned bubble */}
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{
-            background: '#33302A', borderRadius: 12, padding: '12px 16px', maxWidth: '80%',
+            background: 'var(--cb-bg-active)', borderRadius: 12, padding: '12px 16px', maxWidth: '80%',
           }}>
-            <div style={{ color: '#E8E4E0', fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
+            <div style={{ color: 'var(--cb-text-primary)', fontSize: 13, lineHeight: 1.5 }}>{msg.content}</div>
           </div>
         </div>
       </div>
@@ -448,8 +448,8 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
       {/* assistant header */}
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
         <Sparkles size={16} style={{ color: '#E5A54B' }} />
-        <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {msg.model === 'opus' ? 'Opus 4.6' : msg.model === 'sonnet' ? 'Sonnet 4.6' : msg.model === 'haiku' ? 'Haiku 4.5' : msg.model || 'Opus 4.6'}</span>
-        <span style={{ color: '#6B6560', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
+        <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {msg.model === 'opus' ? 'Opus 4.6' : msg.model === 'sonnet' ? 'Sonnet 4.6' : msg.model === 'haiku' ? 'Haiku 4.5' : msg.model || 'Opus 4.6'}</span>
+        <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
       </div>
 
       {segments.map((seg, idx) => (
@@ -462,12 +462,12 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
                 onClick={() => toggleSegment(idx)}
                 style={{ gap: 6, cursor: 'pointer', marginBottom: collapsedSegments[idx] ? 0 : 6 }}
               >
-                <span style={{ color: '#6B6560', fontSize: 13 }}>{collapsedSegments[idx] ? '▸' : '▾'}</span>
-                <span style={{ color: '#9C9690', fontSize: 13 }}>Activity</span>
-                <span style={{ color: '#6B6560', fontSize: 12 }}>{seg.activity.length} steps</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 13 }}>{collapsedSegments[idx] ? '▸' : '▾'}</span>
+                <span style={{ color: 'var(--cb-text-muted)', fontSize: 13 }}>Activity</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>{seg.activity.length} steps</span>
               </div>
               {!collapsedSegments[idx] && (
-                <div style={{ borderLeft: '1px solid #2A2520', marginLeft: 9, paddingLeft: 12 }}>
+                <div style={{ borderLeft: '1px solid var(--cb-border)', marginLeft: 9, paddingLeft: 12 }}>
                   {seg.activity.map((block, j) => (
                     <BlockRenderer key={j} block={block} />
                   ))}
@@ -483,12 +483,12 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
       {/* result bar */}
       {(msg.cost != null || msg.duration_ms != null) && (
         <div className="flex items-center" style={{ padding: '6px 0', gap: 16, marginTop: 8 }}>
-          <div style={{ flex: 1, height: 1, background: '#2A2520' }} />
-          <span style={{ color: '#6B6560', fontSize: 10, whiteSpace: 'nowrap' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--cb-border)' }} />
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, whiteSpace: 'nowrap' }}>
             {msg.duration_ms != null ? `${(msg.duration_ms / 1000).toFixed(1)}s` : ''}
             {msg.cost != null ? ` · $${msg.cost.toFixed(4)}` : ''}
           </span>
-          <div style={{ flex: 1, height: 1, background: '#2A2520' }} />
+          <div style={{ flex: 1, height: 1, background: 'var(--cb-border)' }} />
         </div>
       )}
     </div>
@@ -517,7 +517,9 @@ export function CenterPanel() {
     }).catch(() => {});
   }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const {
     messages,
@@ -529,16 +531,46 @@ export function CenterPanel() {
     totalCost,
     contextUsage,
     checkpoints,
+    hasMoreMessages,
+    loadingMoreMessages,
+    loadOlderMessages,
     sendMessage,
     stopStreaming,
     setModel,
   } = useAppStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
-  // Auto-scroll on new messages or streaming blocks
+  // Auto-scroll on new messages or streaming blocks (only if near bottom)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 200) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, streamingBlocks]);
+
+  // Track scroll position for scroll-to-bottom button + load-more
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollToBottom(distFromBottom > 300);
+      // Load more when scrolled near top
+      if (el.scrollTop < 100 && hasMoreMessages && !loadingMoreMessages) {
+        const prevHeight = el.scrollHeight;
+        loadOlderMessages().then(() => {
+          // Preserve scroll position after prepending
+          requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight - prevHeight;
+          });
+        });
+      }
+    };
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [hasMoreMessages, loadingMoreMessages, loadOlderMessages]);
 
   // Helper: get text + file refs from contentEditable
   const getEditorContent = useCallback(() => {
@@ -597,9 +629,9 @@ export function CenterPanel() {
     const makeCloseBtn = () => {
       const btn = document.createElement('span');
       btn.textContent = '\u00D7';
-      btn.style.cssText = 'color:#6B6560;font-size:14px;line-height:1;cursor:pointer;margin-left:2px;flex-shrink:0;';
-      btn.addEventListener('mouseenter', () => { btn.style.color = '#E8E4E0'; });
-      btn.addEventListener('mouseleave', () => { btn.style.color = '#6B6560'; });
+      btn.style.cssText = 'color:var(--cb-text-dim);font-size:14px;line-height:1;cursor:pointer;margin-left:2px;flex-shrink:0;';
+      btn.addEventListener('mouseenter', () => { btn.style.color = 'var(--cb-text-primary)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.color = 'var(--cb-text-dim)'; });
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -627,7 +659,7 @@ export function CenterPanel() {
 
     if (isImage) {
       // Image chip — inline-block with fixed line-height so cursor stays normal height
-      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;padding:3px;margin:0 2px;border-radius:6px;display:inline-block;vertical-align:middle;user-select:all;cursor:pointer;line-height:0;';
+      chip.style.cssText = 'background:var(--cb-bg-primary);border:1px solid var(--cb-border);padding:3px;margin:0 2px;border-radius:6px;display:inline-block;vertical-align:middle;user-select:all;cursor:pointer;line-height:0;';
       const inner = document.createElement('span');
       inner.style.cssText = 'display:flex;align-items:center;gap:4px;';
       const img = document.createElement('img');
@@ -647,7 +679,7 @@ export function CenterPanel() {
       });
     } else if (isDir) {
       // Directory chip — pencil design: deep bg + border + folder SVG icon + blue label + close
-      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;color:#60A5FA;padding:3px 8px 3px 6px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
+      chip.style.cssText = 'background:var(--cb-bg-primary);border:1px solid var(--cb-border);color:#60A5FA;padding:3px 8px 3px 6px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
       const icon = document.createElement('span');
       icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
       icon.style.cssText = 'flex-shrink:0;display:flex;align-items:center;color:#60A5FA;';
@@ -658,7 +690,7 @@ export function CenterPanel() {
       chip.appendChild(makeCloseBtn());
     } else {
       // File chip — pencil design: deep bg + border + amber label + close
-      chip.style.cssText = 'background:#1C1917;border:1px solid #2A2520;color:#E5A54B;padding:3px 8px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
+      chip.style.cssText = 'background:var(--cb-bg-primary);border:1px solid var(--cb-border);color:#E5A54B;padding:3px 8px;margin:0 2px;font-size:12px;border-radius:6px;display:inline-flex;align-items:center;gap:5px;line-height:normal;vertical-align:middle;user-select:all;';
       const label = document.createElement('span');
       label.textContent = `@${name}`;
       chip.appendChild(label);
@@ -742,34 +774,41 @@ export function CenterPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#1C1917' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--cb-bg-primary)' }}>
       {/* header */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid #2A2520' }}
+        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid var(--cb-border)' }}
       >
         <div className="flex items-center" style={{ gap: 10 }}>
-          <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>
+          <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>
             {activeSession?.name ?? 'No session'}
           </span>
-          <span style={{ background: '#262220', color: '#9C9690', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
+          <span style={{ background: 'var(--cb-bg-elevated)', color: 'var(--cb-text-muted)', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
             {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}
           </span>
         </div>
         <div className="flex items-center" style={{ gap: 10 }}>
-          <span style={{ color: '#6B6560', fontSize: 11 }}>${totalCost.toFixed(4)}</span>
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>${totalCost.toFixed(4)}</span>
           {contextUsage.total > 0 && (
             <div className="flex items-center" style={{ gap: 6 }}>
               <ContextProgressBar percent={contextUsage.percent} />
-              <span style={{ color: contextUsage.percent > 80 ? '#EF4444' : '#6B6560', fontSize: 10 }}>{contextUsage.percent}%</span>
+              <span style={{ color: contextUsage.percent > 80 ? '#EF4444' : 'var(--cb-text-dim)', fontSize: 10 }}>{contextUsage.percent}%</span>
             </div>
           )}
         </div>
       </div>
 
       {/* messages — design: padding 24, gap 20 */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: 24 }}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto" style={{ padding: 24, position: 'relative' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Load more indicator */}
+          {loadingMoreMessages && (
+            <div style={{ textAlign: 'center', padding: '8px 0', color: 'var(--cb-text-dim)', fontSize: 11 }}>loading older messages...</div>
+          )}
+          {!hasMoreMessages && messages.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '8px 0', color: 'var(--cb-text-dim)', fontSize: 11 }}>session started</div>
+          )}
           {messages.map((msg) => (
             <MessageView
               key={msg.id}
@@ -798,7 +837,7 @@ export function CenterPanel() {
               <div>
                 <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
                   <Sparkles size={16} style={{ color: '#E5A54B' }} />
-                  <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E5A54B', animation: 'pulse 1.5s ease-in-out infinite' }} />
                   <StreamTimer />
                 </div>
@@ -807,11 +846,11 @@ export function CenterPanel() {
                     {seg.activity.length > 0 && (
                       <div style={{ marginBottom: seg.reply ? 10 : 0 }}>
                         <div className="flex items-center" style={{ gap: 6, cursor: 'pointer', marginBottom: 6 }}>
-                          <ChevronDown size={13} style={{ color: '#6B6560' }} />
-                          <span style={{ color: '#9C9690', fontSize: 13 }}>Activity</span>
-                          <span style={{ color: '#6B6560', fontSize: 12 }}>{seg.activity.length} steps</span>
+                          <ChevronDown size={13} style={{ color: 'var(--cb-text-dim)' }} />
+                          <span style={{ color: 'var(--cb-text-muted)', fontSize: 13 }}>Activity</span>
+                          <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>{seg.activity.length} steps</span>
                         </div>
-                        <div style={{ borderLeft: '1px solid #2A2520', marginLeft: 9, paddingLeft: 12 }}>
+                        <div style={{ borderLeft: '1px solid var(--cb-border)', marginLeft: 9, paddingLeft: 12 }}>
                           {seg.activity.map((block, j) => (
                             <BlockRenderer key={j} block={block} />
                           ))}
@@ -829,7 +868,7 @@ export function CenterPanel() {
           {isStreaming && streamingBlocks.length === 0 && (
             <div className="flex items-center" style={{ gap: 8, padding: '12px 0' }}>
               <Sparkles size={16} style={{ color: '#E5A54B' }} />
-              <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
+              <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
               <span
                 style={{
                   width: 6,
@@ -839,12 +878,41 @@ export function CenterPanel() {
                   animation: 'pulse 1.5s ease-in-out infinite',
                 }}
               />
-              <span style={{ color: '#6B6560', fontSize: 11 }}>thinking...</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>thinking...</span>
             </div>
           )}
 
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Scroll to bottom button */}
+        {showScrollToBottom && (
+          <button
+            onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+            style={{
+              position: 'sticky',
+              bottom: 16,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              background: 'var(--cb-bg-elevated)',
+              border: '1px solid var(--cb-border)',
+              color: 'var(--cb-text-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              zIndex: 10,
+            }}
+            title="Scroll to bottom"
+          >
+            ↓
+          </button>
+        )}
       </div>
 
       {/* input area — drop zone for files */}
@@ -911,7 +979,7 @@ export function CenterPanel() {
           }
         }}
         style={{
-          borderTop: isDragOver ? '2px solid #E5A54B' : '1px solid #2A2520',
+          borderTop: isDragOver ? '2px solid #E5A54B' : '1px solid var(--cb-border)',
           padding: isDragOver ? '12px 24px 10px' : '12px 24px 10px',
           background: isDragOver ? '#E5A54B33' : 'transparent',
           transition: 'background 0.15s, border-top 0.15s',
@@ -921,7 +989,7 @@ export function CenterPanel() {
         <div className="flex items-start" style={{ gap: 10 }}>
           <div
             className="flex items-start flex-1"
-            style={{ padding: '12px 16px', background: '#262220', borderRadius: 12, gap: 8, minHeight: 40 }}
+            style={{ padding: '12px 16px', background: 'var(--cb-bg-elevated)', borderRadius: 12, gap: 8, minHeight: 40 }}
           >
             <div
               ref={editorRef}
@@ -1005,7 +1073,7 @@ export function CenterPanel() {
               }}
               data-placeholder="type a message..."
               style={{
-                color: '#E8E4E0', fontSize: 13, fontFamily: 'inherit',
+                color: 'var(--cb-text-primary)', fontSize: 13, fontFamily: 'inherit',
                 lineHeight: '24px', maxHeight: 150, overflowY: 'auto',
                 outline: 'none', flex: 1, minHeight: 24,
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -1021,10 +1089,10 @@ export function CenterPanel() {
               onClick={handleAttachFiles}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: '#6B6560', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
+                color: 'var(--cb-text-dim)', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#9C9690')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--cb-text-muted)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-dim)')}
               title="attach files"
             >
               <CirclePlus size={16} />
@@ -1033,10 +1101,10 @@ export function CenterPanel() {
               onClick={handleAttachImages}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
-                color: '#6B6560', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
+                color: 'var(--cb-text-dim)', padding: '4px 6px', borderRadius: 4, display: 'flex', alignItems: 'center',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#9C9690')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--cb-text-muted)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-dim)')}
               title="attach images"
             >
               <Image size={16} />
@@ -1049,8 +1117,8 @@ export function CenterPanel() {
                 onChange={(e) => setModel(e.target.value)}
                 style={{
                   appearance: 'none', WebkitAppearance: 'none',
-                  background: '#1C1917', borderRadius: 10, padding: '3px 26px 3px 26px',
-                  border: '1px solid #2A2520', color: '#9C9690', fontSize: 11,
+                  background: 'var(--cb-bg-primary)', borderRadius: 10, padding: '3px 26px 3px 26px',
+                  border: '1px solid var(--cb-border)', color: 'var(--cb-text-muted)', fontSize: 11,
                   fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
                 }}
               >
@@ -1066,15 +1134,15 @@ export function CenterPanel() {
                 )}
               </select>
               <Sparkles size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#E5A54B', pointerEvents: 'none' }} />
-              <ChevronDown size={10} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: '#6B6560', pointerEvents: 'none' }} />
+              <ChevronDown size={10} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-text-dim)', pointerEvents: 'none' }} />
             </div>
             {isStreaming ? (
               <div
                 onClick={stopStreaming}
                 style={{ cursor: 'pointer', padding: '2px 8px', background: '#ef4444', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }}
               >
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: '#E8E4E0' }} />
-                <span style={{ color: '#E8E4E0', fontSize: 10, fontWeight: 500 }}>stop</span>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--cb-text-primary)' }} />
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 10, fontWeight: 500 }}>stop</span>
               </div>
             ) : (
               <Send size={16} style={{ color: '#E5A54B', cursor: 'pointer', opacity: !activeSessionId ? 0.3 : 1 }} onClick={handleSend} />
@@ -1103,10 +1171,10 @@ export function CenterPanel() {
               style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain' }}
             />
             <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <span style={{ color: '#6B6560', fontSize: 11 }}>{previewImage.split('/').pop()}</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>{previewImage.split('/').pop()}</span>
               <span
                 onClick={() => setPreviewImage(null)}
-                style={{ color: '#6B6560', fontSize: 12, marginLeft: 16, cursor: 'pointer' }}
+                style={{ color: 'var(--cb-text-dim)', fontSize: 12, marginLeft: 16, cursor: 'pointer' }}
               >
                 [esc]
               </span>

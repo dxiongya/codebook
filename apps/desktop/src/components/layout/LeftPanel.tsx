@@ -152,14 +152,14 @@ export function LeftPanel() {
       ref={containerRef}
       data-no-select
       className="flex flex-col h-full"
-      style={{ background: '#1C1917', borderRight: '1px solid #2A2520' }}
+      style={{ background: 'var(--cb-bg-sidebar)', borderRight: '1px solid var(--cb-border)' }}
     >
       {/* PROJECTS header (fixed) */}
       <div className="flex items-center justify-between shrink-0" style={{ padding: '10px 16px 4px 16px' }}>
-        <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>PROJECTS</span>
+        <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>PROJECTS</span>
         <Plus
           size={14}
-          style={{ color: '#6B6560', cursor: 'pointer' }}
+          style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }}
           onClick={handleAddProject}
         />
       </div>
@@ -182,7 +182,7 @@ export function LeftPanel() {
                   padding: '8px 10px',
                   gap: 8,
                   borderRadius: 8,
-                  background: isActive ? '#262220' : 'transparent',
+                  background: isActive ? 'var(--cb-bg-elevated)' : 'transparent',
                 }}
               >
                 <div
@@ -193,7 +193,7 @@ export function LeftPanel() {
                 />
                 <span
                   style={{
-                    color: isActive ? '#E8E4E0' : '#9C9690',
+                    color: isActive ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
                     fontSize: 12,
                     fontWeight: isActive ? 500 : 400,
                     flex: 1,
@@ -205,7 +205,7 @@ export function LeftPanel() {
                   {project.name}
                 </span>
                 {isActive && (
-                  <span style={{ color: '#6B6560', fontSize: 10 }}>
+                  <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>
                     {sessionCounts[project.id] ?? 0}
                   </span>
                 )}
@@ -219,8 +219,8 @@ export function LeftPanel() {
               className="flex items-center cursor-pointer"
               style={{ padding: '8px 10px', gap: 6, borderRadius: 8 }}
             >
-              <Plus size={14} style={{ color: '#6B6560' }} />
-              <span style={{ color: '#6B6560', fontSize: 12 }}>Add project</span>
+              <Plus size={14} style={{ color: 'var(--cb-text-dim)' }} />
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>Add project</span>
             </div>
           )}
         </div>
@@ -246,8 +246,8 @@ export function LeftPanel() {
 
       {/* Divider between projects and sessions */}
       {activeProjectId && (
-        <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid #2A2520' }}>
-          <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>SESSIONS</span>
+        <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid var(--cb-border)' }}>
+          <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>SESSIONS</span>
         </div>
       )}
 
@@ -270,12 +270,12 @@ export function LeftPanel() {
                 gap: 8,
                 borderRadius: 8,
                 cursor: 'pointer',
-                background: isActive ? '#262220' : 'transparent',
+                background: isActive ? 'var(--cb-bg-elevated)' : 'transparent',
               }}
             >
               <MessageSquare
                 size={14}
-                style={{ color: isActive ? '#E5A54B' : '#6B6560', flexShrink: 0 }}
+                style={{ color: isActive ? '#E5A54B' : 'var(--cb-text-dim)', flexShrink: 0 }}
               />
               <div className="flex-1 min-w-0">
                 {renamingId === session.id ? (
@@ -291,7 +291,7 @@ export function LeftPanel() {
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       color: '#E5A54B', fontSize: 12, width: '100%',
-                      background: '#1C1917', border: '1px solid #E5A54B',
+                      background: 'var(--cb-bg-primary)', border: '1px solid #E5A54B',
                       padding: '1px 4px', outline: 'none', borderRadius: 4,
                     }}
                   />
@@ -301,7 +301,7 @@ export function LeftPanel() {
                       <div
                         onDoubleClick={(e) => { e.stopPropagation(); startRename(session.id, session.name); }}
                         style={{
-                          color: isActive ? '#E8E4E0' : '#9C9690',
+                          color: isActive ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
                           fontSize: 12,
                           fontWeight: isActive ? 500 : 400,
                           overflow: 'hidden',
@@ -316,10 +316,10 @@ export function LeftPanel() {
                       <span style={{
                         fontSize: 9, fontWeight: 500, flexShrink: 0,
                         padding: '1px 5px', borderRadius: 4,
-                        background: '#33302A',
+                        background: 'var(--cb-bg-active)',
                         color: session.cli_type === 'codex' ? '#4ADE80'
                           : session.cli_type === 'gemini' ? '#60A5FA'
-                          : isActive ? '#E5A54B' : '#6B6560',
+                          : isActive ? '#E5A54B' : 'var(--cb-text-dim)',
                       }}>
                         {session.cli_type || 'claude'}
                       </span>
@@ -330,7 +330,7 @@ export function LeftPanel() {
                         }} />
                       )}
                     </div>
-                    <div style={{ color: '#6B6560', fontSize: 10, marginTop: 2 }}>
+                    <div style={{ color: 'var(--cb-text-dim)', fontSize: 10, marginTop: 2 }}>
                       {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </div>
                   </>
@@ -346,8 +346,8 @@ export function LeftPanel() {
             className="flex items-center cursor-pointer"
             style={{ padding: '10px 12px', gap: 8, borderRadius: 8 }}
           >
-            <Plus size={14} style={{ color: '#6B6560' }} />
-            <span style={{ color: '#6B6560', fontSize: 12 }}>New session</span>
+            <Plus size={14} style={{ color: 'var(--cb-text-dim)' }} />
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>New session</span>
           </div>
         )}
 
@@ -356,23 +356,23 @@ export function LeftPanel() {
             onClick={handleNewSession}
             className="flex items-center cursor-pointer"
             style={{ padding: '8px 12px', gap: 6, marginTop: 2 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#262220')}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-bg-elevated)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
-            <Plus size={12} style={{ color: '#6B6560' }} />
-            <span style={{ color: '#6B6560', fontSize: 11 }}>New session</span>
+            <Plus size={12} style={{ color: 'var(--cb-text-dim)' }} />
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>New session</span>
           </div>
         )}
       </div>
 
       {/* References */}
       {activeProjectId && (
-        <div style={{ borderTop: '1px solid #2A2520', padding: '8px 8px 4px 8px' }}>
+        <div style={{ borderTop: '1px solid var(--cb-border)', padding: '8px 8px 4px 8px' }}>
           <div className="flex items-center justify-between" style={{ padding: '4px 8px' }}>
-            <span style={{ color: '#6B6560', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>REFERENCES</span>
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>REFERENCES</span>
             <Plus
               size={12}
-              style={{ color: '#6B6560', cursor: 'pointer' }}
+              style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }}
               onClick={handleAddReference}
             />
           </div>
@@ -390,7 +390,7 @@ export function LeftPanel() {
               <FolderOpen size={12} style={{ color: '#60A5FA', flexShrink: 0 }} />
               <span
                 style={{
-                  color: '#9C9690', fontSize: 11, flex: 1,
+                  color: 'var(--cb-text-muted)', fontSize: 11, flex: 1,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
                 title={ref.path}
@@ -399,9 +399,9 @@ export function LeftPanel() {
               </span>
               <span
                 onClick={() => removeReference(ref.id)}
-                style={{ color: '#6B6560', fontSize: 12, cursor: 'pointer', padding: '0 2px' }}
+                style={{ color: 'var(--cb-text-dim)', fontSize: 12, cursor: 'pointer', padding: '0 2px' }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-dim)')}
               >
                 ×
               </span>
@@ -413,14 +413,14 @@ export function LeftPanel() {
       {/* Bottom bar */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ borderTop: '1px solid #2A2520', padding: '8px 16px' }}
+        style={{ borderTop: '1px solid var(--cb-border)', padding: '8px 16px' }}
       >
         <Settings
           size={15}
-          style={{ color: '#6B6560', cursor: 'pointer' }}
+          style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }}
           onClick={() => useAppStore.getState().setSettingsOpen(true)}
         />
-        <Menu size={15} style={{ color: '#6B6560', cursor: 'pointer' }} />
+        <Menu size={15} style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }} />
       </div>
 
       {/* Context menu */}
@@ -431,8 +431,8 @@ export function LeftPanel() {
             left: contextMenu.x,
             top: contextMenu.y,
             zIndex: 1000,
-            background: '#262220',
-            border: '1px solid #2A2520',
+            background: 'var(--cb-bg-elevated)',
+            border: '1px solid var(--cb-border)',
             borderRadius: 8,
             padding: 4,
             minWidth: 160,
@@ -444,17 +444,17 @@ export function LeftPanel() {
             <>
               <div
                 onClick={() => { startRename(contextMenu.id, contextMenu.name); setContextMenu(null); }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Rename
               </div>
               <div
                 onClick={() => { deleteSession(contextMenu.id); setContextMenu(null); }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Delete
               </div>
@@ -468,9 +468,9 @@ export function LeftPanel() {
                   if (p) { import('@tauri-apps/plugin-opener').then((m) => m.revealItemInDir(p.path)); }
                   setContextMenu(null);
                 }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Open in Finder
               </div>
@@ -483,26 +483,26 @@ export function LeftPanel() {
                   }
                   setContextMenu(null);
                 }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Open in Terminal
               </div>
               <div
                 onClick={() => { useAppStore.getState().setRightPanelTab('config'); setContextMenu(null); }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = '#1C1917')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Config
               </div>
-              <div style={{ height: 1, background: '#2A2520', margin: '3px 8px' }} />
+              <div style={{ height: 1, background: 'var(--cb-border)', margin: '3px 8px' }} />
               <div
                 onClick={() => { useAppStore.getState().deleteProject(contextMenu.id); setContextMenu(null); }}
-                style={{ padding: '6px 12px', fontSize: 12, color: '#E8E4E0', cursor: 'pointer', borderRadius: 6 }}
+                style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#E8E4E0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Remove from Codebook
               </div>

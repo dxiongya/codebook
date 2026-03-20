@@ -1,6 +1,7 @@
 mod claude;
 mod db;
 mod git;
+mod hub;
 mod remote;
 
 use claude::ClaudeManager;
@@ -78,8 +79,8 @@ fn rename_session(db: State<DbState>, id: String, name: String) -> Result<(), St
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-fn get_messages(db: State<DbState>, session_id: String) -> Result<Vec<Message>, String> {
-    db.0.get_messages(&session_id)
+fn get_messages(db: State<DbState>, session_id: String, limit: Option<u32>, before: Option<String>) -> Result<Vec<Message>, String> {
+    db.0.get_messages_paginated(&session_id, limit, before.as_deref())
         .map_err(|e| e.to_string())
 }
 

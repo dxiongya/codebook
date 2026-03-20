@@ -325,11 +325,50 @@ impl Database {
     }
 
     pub fn get_messages(&self, session_id: &str) -> SqlResult<Vec<Message>> {
+        self.get_messages_paginated(session_id, None, None)
+    }
+
+    /// Get messages with optional pagination.
+    /// - `limit`: max messages to return (default: all)
+    /// - `before`: only return messages created before this ISO timestamp (cursor)
+    /// Returns messages in ascending chronological order (oldest first in the batch).
+    pub fn get_messages_paginated(
+        &self,
+        session_id: &str,
+        limit: Option<u32>,
+        before: Option<&str>,
+    ) -> SqlResult<Vec<Message>> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, session_id, role, content, model, cost, duration_ms, created_at FROM messages WHERE session_id = ?1 ORDER BY created_at ASC",
-        )?;
-        let rows = stmt.query_map(params![session_id], |row| {
+        let (sql, params_vec): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = match (limit, before) {
+            (Some(lim), Some(before_ts)) => (
+                "SELECT id, session_id, role, content, model, cost, duration_ms, created_at \
+                 FROM messages WHERE session_id = ?1 AND created_at < ?2 \
+                 ORDER BY created_at DESC LIMIT ?3".to_string(),
+                vec![
+                    Box::new(session_id.to_string()) as Box<dyn rusqlite::types::ToSql>,
+                    Box::new(before_ts.to_string()),
+                    Box::new(lim),
+                ],
+            ),
+            (Some(lim), None) => (
+                "SELECT id, session_id, role, content, model, cost, duration_ms, created_at \
+                 FROM messages WHERE session_id = ?1 \
+                 ORDER BY created_at DESC LIMIT ?2".to_string(),
+                vec![
+                    Box::new(session_id.to_string()) as Box<dyn rusqlite::types::ToSql>,
+                    Box::new(lim),
+                ],
+            ),
+            _ => (
+                "SELECT id, session_id, role, content, model, cost, duration_ms, created_at \
+                 FROM messages WHERE session_id = ?1 \
+                 ORDER BY created_at ASC".to_string(),
+                vec![Box::new(session_id.to_string()) as Box<dyn rusqlite::types::ToSql>],
+            ),
+        };
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(params_refs.as_slice(), |row| {
             Ok(Message {
                 id: row.get(0)?,
                 session_id: row.get(1)?,
@@ -341,7 +380,12 @@ impl Database {
                 created_at: row.get(7)?,
             })
         })?;
-        rows.collect()
+        let mut messages: Vec<Message> = rows.collect::<SqlResult<Vec<_>>>()?;
+        // When using limit, we queried DESC; reverse to get chronological order
+        if limit.is_some() {
+            messages.reverse();
+        }
+        Ok(messages)
     }
 
     // -----------------------------------------------------------------------

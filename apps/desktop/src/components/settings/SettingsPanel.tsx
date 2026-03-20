@@ -2,17 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { useAppStore } from '../../stores/useAppStore';
 import * as api from '../../lib/api';
+import { THEMES, DEFAULT_THEME, applyTheme } from '../../lib/theme';
 
 const beforeMount = (monaco: any) => {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-primary').trim() || '#1C1917';
   monaco.editor.defineTheme('codebook-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
     colors: {
-      'editor.background': '#1C1917',
+      'editor.background': bg,
       'editor.lineHighlightBackground': '#1F1F1F',
       'editorLineNumber.foreground': '#4B5563',
-      'editorGutter.background': '#1C1917',
+      'editorGutter.background': bg,
     },
   });
 };
@@ -64,7 +66,7 @@ const EFFORT_LEVELS = ['low', 'medium', 'high', 'max'];
 
 function SectionHeader({ children }: { children: string }) {
   return (
-    <div style={{ color: '#6B6560', fontSize: 11, marginBottom: 12, marginTop: 20 }}>
+    <div style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginBottom: 12, marginTop: 20 }}>
       // {children}
     </div>
   );
@@ -88,9 +90,9 @@ function SelectInput({
           appearance: 'none',
           WebkitAppearance: 'none',
           padding: '6px 28px 6px 10px',
-          border: '1px solid #2A2520',
-          background: '#262220',
-          color: '#E8E4E0',
+          border: '1px solid var(--cb-border)',
+          background: 'var(--cb-bg-elevated)',
+          color: 'var(--cb-text-primary)',
           fontSize: 13,
           fontFamily: 'inherit',
           cursor: 'pointer',
@@ -100,7 +102,7 @@ function SelectInput({
         }}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value} style={{ background: '#1C1917' }}>
+          <option key={opt.value} value={opt.value} style={{ background: 'var(--cb-bg-primary)' }}>
             {opt.label}
           </option>
         ))}
@@ -111,7 +113,7 @@ function SelectInput({
           right: 8,
           top: '50%',
           transform: 'translateY(-50%)',
-          color: '#6B6560',
+          color: 'var(--cb-text-dim)',
           fontSize: 10,
           pointerEvents: 'none',
         }}
@@ -139,10 +141,10 @@ function ToggleButtons({
           onClick={() => onChange(opt)}
           style={{
             padding: '6px 14px',
-            border: '1px solid #2A2520',
+            border: '1px solid var(--cb-border)',
             borderRight: 'none',
-            background: value === opt ? '#E5A54B' : '#262220',
-            color: value === opt ? '#1C1917' : '#9C9690',
+            background: value === opt ? '#E5A54B' : 'var(--cb-bg-elevated)',
+            color: value === opt ? 'var(--cb-bg-primary)' : 'var(--cb-text-muted)',
             fontSize: 12,
             fontWeight: value === opt ? 600 : 400,
             fontFamily: 'inherit',
@@ -154,7 +156,7 @@ function ToggleButtons({
         </button>
       ))}
       {/* Close the last border */}
-      <div style={{ width: 1, background: '#2A2520' }} />
+      <div style={{ width: 1, background: 'var(--cb-border)' }} />
     </div>
   );
 }
@@ -178,9 +180,9 @@ function TextInput({
       placeholder={placeholder}
       style={{
         padding: '6px 10px',
-        border: '1px solid #2A2520',
-        background: '#262220',
-        color: '#E8E4E0',
+        border: '1px solid var(--cb-border)',
+        background: 'var(--cb-bg-elevated)',
+        color: 'var(--cb-text-primary)',
         fontSize: 13,
         fontFamily: 'inherit',
         outline: 'none',
@@ -208,9 +210,9 @@ function TextAreaInput({
       rows={4}
       style={{
         padding: '8px 10px',
-        border: '1px solid #2A2520',
-        background: '#262220',
-        color: '#E8E4E0',
+        border: '1px solid var(--cb-border)',
+        background: 'var(--cb-bg-elevated)',
+        color: 'var(--cb-text-primary)',
         fontSize: 13,
         fontFamily: 'inherit',
         outline: 'none',
@@ -335,10 +337,10 @@ function ClaudeCodeSection() {
 
   return (
     <div>
-      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         claude code
       </div>
-      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: 'var(--cb-border)', marginBottom: 8 }} />
 
       <SectionHeader>model</SectionHeader>
       <SelectInput value={model} onChange={handleModelChange} options={MODELS} />
@@ -369,7 +371,7 @@ function ClaudeCodeSection() {
       />
 
       <SectionHeader>global settings</SectionHeader>
-      <div style={{ color: '#9C9690', fontSize: 12, marginBottom: 8 }}>
+      <div style={{ color: 'var(--cb-text-muted)', fontSize: 12, marginBottom: 8 }}>
         ~/.claude/settings.json
       </div>
       {globalSettingsJson === null ? (
@@ -378,8 +380,8 @@ function ClaudeCodeSection() {
           disabled={globalSettingsLoading}
           style={{
             padding: '6px 16px',
-            border: '1px solid #2A2520',
-            background: '#262220',
+            border: '1px solid var(--cb-border)',
+            background: 'var(--cb-bg-elevated)',
             color: '#E5A54B',
             fontSize: 12,
             fontFamily: 'inherit',
@@ -394,7 +396,7 @@ function ClaudeCodeSection() {
         <div style={{ maxWidth: 500 }}>
           <div
             style={{
-              border: '1px solid #2A2520',
+              border: '1px solid var(--cb-border)',
               borderRadius: 6,
               overflow: 'hidden',
             }}
@@ -430,9 +432,9 @@ function ClaudeCodeSection() {
               disabled={globalSettingsSaving}
               style={{
                 padding: '6px 20px',
-                border: '1px solid #2A2520',
+                border: '1px solid var(--cb-border)',
                 background: '#E5A54B',
-                color: '#1C1917',
+                color: 'var(--cb-bg-primary)',
                 fontSize: 12,
                 fontWeight: 600,
                 fontFamily: 'inherit',
@@ -459,7 +461,7 @@ function ClaudeCodeSection() {
 
       <SectionHeader>plugins</SectionHeader>
       {fsPlugins.length > 0 ? (
-        <div style={{ border: '1px solid #2A2520', maxWidth: 400 }}>
+        <div style={{ border: '1px solid var(--cb-border)', maxWidth: 400 }}>
           {fsPlugins.map((p, i) => (
             <div
               key={i}
@@ -467,24 +469,24 @@ function ClaudeCodeSection() {
               style={{
                 padding: '8px 12px',
                 gap: 8,
-                borderBottom: i < fsPlugins.length - 1 ? '1px solid #2A2520' : 'none',
+                borderBottom: i < fsPlugins.length - 1 ? '1px solid var(--cb-border)' : 'none',
               }}
             >
               <div className="flex items-center" style={{ gap: 8 }}>
                 <span style={{ color: '#10B981', fontSize: 12 }}>&#10003;</span>
-                <span style={{ color: '#E8E4E0', fontSize: 12 }}>{p.name}</span>
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 12 }}>{p.name}</span>
               </div>
-              <span style={{ color: '#6B6560', fontSize: 10 }}>v{p.version} · {p.scope}</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>v{p.version} · {p.scope}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6B6560', fontSize: 12 }}>no plugins installed</div>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>no plugins installed</div>
       )}
 
       <SectionHeader>mcp servers</SectionHeader>
       {claudeInitData?.mcp_servers && claudeInitData.mcp_servers.length > 0 ? (
-        <div style={{ border: '1px solid #2A2520', maxWidth: 400 }}>
+        <div style={{ border: '1px solid var(--cb-border)', maxWidth: 400 }}>
           {claudeInitData.mcp_servers.map((s, i) => (
             <div
               key={i}
@@ -493,7 +495,7 @@ function ClaudeCodeSection() {
                 padding: '8px 12px',
                 gap: 8,
                 borderBottom:
-                  i < claudeInitData.mcp_servers.length - 1 ? '1px solid #2A2520' : 'none',
+                  i < claudeInitData.mcp_servers.length - 1 ? '1px solid var(--cb-border)' : 'none',
               }}
             >
               <span
@@ -501,12 +503,12 @@ function ClaudeCodeSection() {
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: s.status === 'connected' ? '#10B981' : '#6B6560',
-                  border: s.status === 'connected' ? 'none' : '1px solid #6B6560',
+                  background: s.status === 'connected' ? '#10B981' : 'var(--cb-text-dim)',
+                  border: s.status === 'connected' ? 'none' : '1px solid var(--cb-text-dim)',
                   flexShrink: 0,
                 }}
               />
-              <span style={{ color: '#E8E4E0', fontSize: 12, flex: 1 }}>{s.name}</span>
+              <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, flex: 1 }}>{s.name}</span>
               <span
                 style={{
                   color: s.status === 'connected' ? '#10B981' : '#F59E0B',
@@ -519,7 +521,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6B6560', fontSize: 12 }}>no mcp servers detected</div>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>no mcp servers detected</div>
       )}
 
       <SectionHeader>allowed tools</SectionHeader>
@@ -530,8 +532,8 @@ function ClaudeCodeSection() {
               key={tool}
               style={{
                 padding: '4px 10px',
-                border: '1px solid #2A2520',
-                color: '#E8E4E0',
+                border: '1px solid var(--cb-border)',
+                color: 'var(--cb-text-primary)',
                 fontSize: 11,
                 background: 'transparent',
               }}
@@ -541,7 +543,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6B6560', fontSize: 12 }}>no tools data yet -- send a message first</div>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>no tools data yet -- send a message first</div>
       )}
 
       <SectionHeader>skills</SectionHeader>
@@ -563,7 +565,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6B6560', fontSize: 12 }}>no skills data yet</div>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>no skills data yet</div>
       )}
 
       <SectionHeader>agents</SectionHeader>
@@ -585,7 +587,7 @@ function ClaudeCodeSection() {
           ))}
         </div>
       ) : (
-        <div style={{ color: '#6B6560', fontSize: 12 }}>no agents data yet</div>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>no agents data yet</div>
       )}
 
       <SectionHeader>permission mode</SectionHeader>
@@ -600,14 +602,14 @@ function ClaudeCodeSection() {
 function CodexSection() {
   return (
     <div>
-      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         codex
       </div>
-      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 16 }} />
-      <div style={{ color: '#6B6560', fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ width: 200, height: 1, background: 'var(--cb-border)', marginBottom: 16 }} />
+      <div style={{ color: 'var(--cb-text-dim)', fontSize: 13, lineHeight: 1.6 }}>
         codex cli -- coming soon
       </div>
-      <div style={{ color: '#6B6560', fontSize: 12, marginTop: 8, lineHeight: 1.5, maxWidth: 400 }}>
+      <div style={{ color: 'var(--cb-text-dim)', fontSize: 12, marginTop: 8, lineHeight: 1.5, maxWidth: 400 }}>
         OpenAI Codex CLI integration will allow you to use Codex as an alternative coding assistant
         alongside Claude Code. Configuration options will mirror the Claude Code section.
       </div>
@@ -715,10 +717,10 @@ function RemoteSection() {
 
   return (
     <div>
-      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         remote access
       </div>
-      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: 'var(--cb-border)', marginBottom: 8 }} />
 
       <SectionHeader>server status</SectionHeader>
       <div className="flex items-center" style={{ gap: 8 }}>
@@ -727,14 +729,14 @@ function RemoteSection() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: remoteInfo?.running ? '#10B981' : '#6B6560',
+            background: remoteInfo?.running ? '#10B981' : 'var(--cb-text-dim)',
             flexShrink: 0,
           }}
         />
-        <span style={{ color: remoteInfo?.running ? '#10B981' : '#9C9690', fontSize: 13 }}>
+        <span style={{ color: remoteInfo?.running ? '#10B981' : 'var(--cb-text-muted)', fontSize: 13 }}>
           {remoteInfo?.running ? 'running' : 'stopped'}
         </span>
-        <span style={{ color: '#6B6560', fontSize: 11, marginLeft: 8 }}>
+        <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginLeft: 8 }}>
           {remoteInfo?.client_count ?? 0} client{(remoteInfo?.client_count ?? 0) !== 1 ? 's' : ''} connected
         </span>
       </div>
@@ -742,49 +744,49 @@ function RemoteSection() {
       <SectionHeader>connection methods</SectionHeader>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 420 }}>
         {/* LAN */}
-        <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '10px 14px' }}>
+        <div style={{ border: '1px solid var(--cb-border)', borderRadius: 6, padding: '10px 14px' }}>
           <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: (connectionInfo?.lan_ips?.length ?? 0) > 0 ? '#10B981' : '#6B6560',
+              background: (connectionInfo?.lan_ips?.length ?? 0) > 0 ? '#10B981' : 'var(--cb-text-dim)',
               flexShrink: 0,
             }} />
-            <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 500 }}>LAN</span>
+            <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 500 }}>LAN</span>
           </div>
           {connectionInfo?.lan_ips && connectionInfo.lan_ips.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 16 }}>
               {connectionInfo.lan_ips.map((ip) => (
-                <span key={ip} style={{ color: '#9C9690', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                <span key={ip} style={{ color: 'var(--cb-text-muted)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
                   {ip}:{connectionInfo.port}
                 </span>
               ))}
             </div>
           ) : (
-            <span style={{ color: '#6B6560', fontSize: 12, paddingLeft: 16 }}>no network interfaces</span>
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 12, paddingLeft: 16 }}>no network interfaces</span>
           )}
         </div>
 
         {/* Tailscale */}
-        <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '10px 14px' }}>
+        <div style={{ border: '1px solid var(--cb-border)', borderRadius: 6, padding: '10px 14px' }}>
           <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: connectionInfo?.tailscale_online ? '#10B981' : '#6B6560',
+              background: connectionInfo?.tailscale_online ? '#10B981' : 'var(--cb-text-dim)',
               flexShrink: 0,
             }} />
-            <span style={{ color: '#E8E4E0', fontSize: 13, fontWeight: 500 }}>Tailscale</span>
+            <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 500 }}>Tailscale</span>
             {!connectionInfo?.tailscale_online && (
-              <span style={{ color: '#6B6560', fontSize: 11 }}>not available</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>not available</span>
             )}
           </div>
           {connectionInfo?.tailscale_online && connectionInfo.tailscale_ip ? (
             <div style={{ paddingLeft: 16 }}>
-              <span style={{ color: '#9C9690', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ color: 'var(--cb-text-muted)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
                 {connectionInfo.tailscale_ip}:{connectionInfo.port}
               </span>
             </div>
           ) : (
-            <span style={{ color: '#6B6560', fontSize: 11, paddingLeft: 16 }}>
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, paddingLeft: 16 }}>
               Install Tailscale for secure remote access outside your local network
             </span>
           )}
@@ -794,8 +796,8 @@ function RemoteSection() {
       <SectionHeader>pin authentication</SectionHeader>
       <div style={{ maxWidth: 420 }}>
         {pin ? (
-          <div style={{ border: '1px solid #2A2520', borderRadius: 6, padding: '16px 20px', textAlign: 'center' }}>
-            <div style={{ color: '#6B6560', fontSize: 11, marginBottom: 8 }}>
+          <div style={{ border: '1px solid var(--cb-border)', borderRadius: 6, padding: '16px 20px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginBottom: 8 }}>
               Enter this PIN on your mobile device
             </div>
             <div style={{
@@ -809,7 +811,7 @@ function RemoteSection() {
               {pin}
             </div>
             <div style={{
-              color: pinExpiry <= 60 ? '#EF4444' : '#6B6560',
+              color: pinExpiry <= 60 ? '#EF4444' : 'var(--cb-text-dim)',
               fontSize: 12,
             }}>
               expires in {formatExpiry(pinExpiry)}
@@ -820,9 +822,9 @@ function RemoteSection() {
               style={{
                 marginTop: 12,
                 padding: '6px 16px',
-                border: '1px solid #2A2520',
+                border: '1px solid var(--cb-border)',
                 background: 'transparent',
-                color: '#9C9690',
+                color: 'var(--cb-text-muted)',
                 fontSize: 11,
                 fontFamily: 'inherit',
                 cursor: 'pointer',
@@ -838,9 +840,9 @@ function RemoteSection() {
             disabled={pinGenerating}
             style={{
               padding: '8px 20px',
-              border: '1px solid #2A2520',
+              border: '1px solid var(--cb-border)',
               background: '#E5A54B',
-              color: '#1C1917',
+              color: 'var(--cb-bg-primary)',
               fontSize: 12,
               fontWeight: 500,
               fontFamily: 'inherit',
@@ -852,7 +854,7 @@ function RemoteSection() {
             {pinGenerating ? 'Generating...' : 'Generate PIN'}
           </button>
         )}
-        <div style={{ color: '#6B6560', fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginTop: 8, lineHeight: 1.5 }}>
           QR code pairing will be available in a future update
         </div>
       </div>
@@ -863,9 +865,9 @@ function RemoteSection() {
           disabled={loading || !remoteInfo}
           style={{
             padding: '8px 20px',
-            border: '1px solid #2A2520',
+            border: '1px solid var(--cb-border)',
             background: remoteInfo?.running ? 'transparent' : '#E5A54B',
-            color: remoteInfo?.running ? '#9C9690' : '#1C1917',
+            color: remoteInfo?.running ? 'var(--cb-text-muted)' : 'var(--cb-bg-primary)',
             fontSize: 12,
             fontWeight: 500,
             fontFamily: 'inherit',
@@ -890,6 +892,7 @@ function applyFontSize(size: number) {
 
 function DisplaySection() {
   const [fontSize, setFontSize] = useState(13);
+  const [activeTheme, setActiveTheme] = useState(DEFAULT_THEME);
 
   useEffect(() => {
     api.getSetting('display_font_size').then((v) => {
@@ -897,6 +900,12 @@ function DisplaySection() {
         const size = parseInt(v, 10);
         setFontSize(size);
         applyFontSize(size);
+      }
+    }).catch(() => {});
+    api.getSetting('display_theme').then((v) => {
+      if (v) {
+        setActiveTheme(v);
+        applyTheme(v);
       }
     }).catch(() => {});
   }, []);
@@ -907,12 +916,18 @@ function DisplaySection() {
     api.setSetting('display_font_size', String(v)).catch(console.error);
   };
 
+  const handleThemeChange = (themeId: string) => {
+    setActiveTheme(themeId);
+    applyTheme(themeId);
+    api.setSetting('display_theme', themeId).catch(console.error);
+  };
+
   return (
     <div>
-      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         display
       </div>
-      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: 'var(--cb-border)', marginBottom: 8 }} />
 
       <SectionHeader>font size</SectionHeader>
       <div className="flex items-center" style={{ gap: 12 }}>
@@ -928,21 +943,48 @@ function DisplaySection() {
             cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#E8E4E0', fontSize: 13 }}>{fontSize}px</span>
+        <span style={{ color: 'var(--cb-text-primary)', fontSize: 13 }}>{fontSize}px</span>
       </div>
 
       <SectionHeader>theme</SectionHeader>
-      <div className="flex items-center" style={{ gap: 8 }}>
-        <span
-          style={{
-            width: 16,
-            height: 16,
-            background: '#1C1917',
-            border: '1px solid #2A2520',
-          }}
-        />
-        <span style={{ color: '#E8E4E0', fontSize: 13 }}>dark</span>
-        <span style={{ color: '#6B6560', fontSize: 11 }}>(only theme)</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {THEMES.map((theme) => {
+          const isActive = activeTheme === theme.id;
+          return (
+            <button
+              key={theme.id}
+              onClick={() => handleThemeChange(theme.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '8px 12px',
+                background: isActive ? 'var(--cb-bg-active)' : 'transparent',
+                border: isActive ? '1px solid var(--cb-accent)' : '1px solid var(--cb-border)',
+                borderRadius: 6,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              <span
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 4,
+                  background: theme.preview,
+                  border: `1px solid ${theme.previewBorder}`,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: isActive ? 600 : 400 }}>
+                {theme.label}
+              </span>
+              {isActive && (
+                <span style={{ color: 'var(--cb-accent)', fontSize: 10, marginLeft: 'auto' }}>active</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -953,16 +995,16 @@ function AboutSection() {
 
   return (
     <div>
-      <div style={{ color: '#E8E4E0', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div style={{ color: 'var(--cb-text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
         about
       </div>
-      <div style={{ width: 200, height: 1, background: '#2A2520', marginBottom: 8 }} />
+      <div style={{ width: 200, height: 1, background: 'var(--cb-border)', marginBottom: 8 }} />
 
       <SectionHeader>version</SectionHeader>
-      <span style={{ color: '#E8E4E0', fontSize: 13 }}>v0.1.0</span>
+      <span style={{ color: 'var(--cb-text-primary)', fontSize: 13 }}>v0.1.0</span>
 
       <SectionHeader>claude cli version</SectionHeader>
-      <span style={{ color: '#E8E4E0', fontSize: 13 }}>
+      <span style={{ color: 'var(--cb-text-primary)', fontSize: 13 }}>
         {claudeInitData?.claude_code_version ?? 'unknown -- send a message to detect'}
       </span>
 
@@ -1039,8 +1081,8 @@ export function SettingsPanel() {
           maxWidth: '90vw',
           height: 600,
           maxHeight: '85vh',
-          background: '#1C1917',
-          border: '1px solid #2A2520',
+          background: 'var(--cb-bg-primary)',
+          border: '1px solid var(--cb-border)',
           borderRadius: 10,
           overflow: 'hidden',
           display: 'flex',
@@ -1052,10 +1094,10 @@ export function SettingsPanel() {
           className="flex items-center justify-between shrink-0"
           style={{
             padding: '12px 20px',
-            borderBottom: '1px solid #2A2520',
+            borderBottom: '1px solid var(--cb-border)',
           }}
         >
-          <span style={{ color: '#E8E4E0', fontSize: 14, fontWeight: 700 }}>
+          <span style={{ color: 'var(--cb-text-primary)', fontSize: 14, fontWeight: 700 }}>
             Settings
           </span>
           <button
@@ -1063,7 +1105,7 @@ export function SettingsPanel() {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#6B6560',
+              color: 'var(--cb-text-dim)',
               fontSize: 18,
               fontFamily: 'inherit',
               padding: '2px 6px',
@@ -1071,8 +1113,8 @@ export function SettingsPanel() {
               borderRadius: 6,
               lineHeight: 1,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#E8E4E0')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#6B6560')}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--cb-text-primary)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-dim)')}
           >
             ×
           </button>
@@ -1085,14 +1127,14 @@ export function SettingsPanel() {
             className="shrink-0 overflow-y-auto"
             style={{
               width: 200,
-              background: '#1C1917',
-              borderRight: '1px solid #2A2520',
+              background: 'var(--cb-bg-primary)',
+              borderRight: '1px solid var(--cb-border)',
               padding: '16px 0',
             }}
           >
             {Object.entries(groups).map(([group, items]) => (
               <div key={group} style={{ marginBottom: 12 }}>
-                <div style={{ padding: '6px 20px', color: '#6B6560', fontSize: 11 }}>
+                <div style={{ padding: '6px 20px', color: 'var(--cb-text-dim)', fontSize: 11 }}>
                   // {group}
                 </div>
                 {items.map((item) => {
@@ -1105,19 +1147,19 @@ export function SettingsPanel() {
                       style={{
                         padding: '8px 20px',
                         gap: 8,
-                        background: isActive ? '#262220' : 'transparent',
+                        background: isActive ? 'var(--cb-bg-elevated)' : 'transparent',
                         border: 'none',
                         borderLeft: isActive ? '2px solid #E5A54B' : '2px solid transparent',
                         cursor: 'pointer',
                         fontFamily: 'inherit',
                       }}
                     >
-                      <span style={{ color: isActive ? '#E5A54B' : '#6B6560', fontSize: 11 }}>
+                      <span style={{ color: isActive ? '#E5A54B' : 'var(--cb-text-dim)', fontSize: 11 }}>
                         {'\u00B7'}
                       </span>
                       <span
                         style={{
-                          color: isActive ? '#E5A54B' : '#9C9690',
+                          color: isActive ? '#E5A54B' : 'var(--cb-text-muted)',
                           fontSize: 13,
                         }}
                       >

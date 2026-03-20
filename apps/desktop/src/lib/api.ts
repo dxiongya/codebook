@@ -25,8 +25,8 @@ export const renameSession = (id: string, name: string) =>
   invoke<void>('rename_session', { id, name });
 
 // Messages
-export const getMessages = (sessionId: string) =>
-  invoke<Message[]>('get_messages', { sessionId });
+export const getMessages = (sessionId: string, limit?: number, before?: string) =>
+  invoke<Message[]>('get_messages', { sessionId, limit: limit ?? null, before: before ?? null });
 
 export const saveMessage = (sessionId: string, role: string, content: string, model?: string, cost?: number, durationMs?: number) =>
   invoke<Message>('save_message', { sessionId, role, content, model, cost, durationMs });

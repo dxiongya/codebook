@@ -99,6 +99,10 @@ interface AppState {
   // context window usage
   contextUsage: { used: number; total: number; percent: number };
 
+  // pagination
+  hasMoreMessages: boolean;
+  loadingMoreMessages: boolean;
+
   // checkpoints
   checkpoints: Checkpoint[];
 
@@ -120,7 +124,8 @@ interface AppState {
   leftPanelVisible: boolean;
   rightPanelVisible: boolean;
   settingsOpen: boolean;
-  rightPanelTab: 'git' | 'files' | 'refs' | 'config';
+  rightPanelTab: 'git' | 'files' | 'config';
+  gitSubTab: 'commit' | 'update' | 'pr' | 'worktree';
 
   // actions – data
   init: () => Promise<void>;
@@ -132,6 +137,7 @@ interface AppState {
   deleteSession: (id: string) => Promise<void>;
   addReference: (path: string, label?: string) => Promise<void>;
   removeReference: (id: string) => Promise<void>;
+  loadOlderMessages: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopStreaming: () => Promise<void>;
   handleClaudeEvent: (event: ClaudeEvent) => void;
@@ -145,7 +151,8 @@ interface AppState {
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   setSettingsOpen: (open: boolean) => void;
-  setRightPanelTab: (tab: 'git' | 'files' | 'refs' | 'config') => void;
+  setRightPanelTab: (tab: 'git' | 'files' | 'config') => void;
+  setGitSubTab: (tab: 'commit' | 'update' | 'pr' | 'worktree') => void;
 }
 
 let _unlisten: UnlistenFn | null = null;
@@ -175,6 +182,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   // context window usage
   contextUsage: { used: 0, total: 0, percent: 0 },
 
+  // pagination
+  hasMoreMessages: true,
+  loadingMoreMessages: false,
+
   // checkpoints
   checkpoints: [],
 
@@ -188,6 +199,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   rightPanelVisible: true,
   settingsOpen: false,
   rightPanelTab: 'git',
+  gitSubTab: 'commit',
 
   // -------- data actions --------
 
@@ -224,6 +236,24 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().handleClaudeEvent(payload);
         });
       }
+
+      // Listen for session-message events (user messages from mobile via hub)
+      listen('session-message', (event) => {
+        const payload = event.payload as any;
+        const sessionId = payload?.session_id ?? '';
+        const msg = payload?.message;
+        if (!msg || !sessionId) return;
+        const { activeSessionId } = get();
+        if (sessionId === activeSessionId) {
+          // Add the mobile user's message to our message list
+          const displayMsg = toDisplayMessage(msg);
+          set((s) => {
+            // Avoid duplicates
+            if (s.messages.some((m) => m.id === displayMsg.id)) return s;
+            return { messages: [...s.messages, displayMsg] };
+          });
+        }
+      });
 
       // Auto-select first project if any
       if (projects.length > 0) {
@@ -304,6 +334,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
     }
 
+    const PAGE_SIZE = 30;
+
     // Switch to new session — don't assume streaming state yet
     set({
       activeSessionId: id,
@@ -311,14 +343,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       streamingBlocks: [],
       isStreaming: false, // temporary, will be corrected below
       checkpoints: [],
+      hasMoreMessages: true,
+      loadingMoreMessages: false,
     });
     try {
       const [rawMessages, checkpoints, contextStr] = await Promise.all([
-        api.getMessages(id),
+        api.getMessages(id, PAGE_SIZE),
         api.getCheckpoints(id),
         api.getSetting(`context_${id}`).catch(() => null),
       ]);
       const messages = rawMessages.map(toDisplayMessage);
+      const hasMore = rawMessages.length >= PAGE_SIZE;
 
       // Restore context usage
       let contextUsage = { used: 0, total: 0, percent: 0 };
@@ -333,6 +368,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         messages,
         checkpoints,
         contextUsage,
+        hasMoreMessages: hasMore,
         totalCost: session?.total_cost ?? 0,
         model: session?.model ?? 'opus',
       });
@@ -482,6 +518,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  loadOlderMessages: async () => {
+    const { activeSessionId, messages, hasMoreMessages, loadingMoreMessages } = get();
+    if (!activeSessionId || !hasMoreMessages || loadingMoreMessages) return;
+    set({ loadingMoreMessages: true });
+    try {
+      const oldest = messages[0];
+      const before = oldest?.created_at;
+      const rawMessages = await api.getMessages(activeSessionId, 30, before);
+      const older = rawMessages.map(toDisplayMessage);
+      set({
+        messages: [...older, ...messages],
+        hasMoreMessages: rawMessages.length >= 30,
+        loadingMoreMessages: false,
+      });
+    } catch {
+      set({ loadingMoreMessages: false });
+    }
+  },
+
   sendMessage: async (content: string) => {
     const { activeSessionId, activeProjectId, model, projects } = get();
     if (!activeSessionId || !content.trim()) return;
@@ -495,6 +550,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         streamingBlocks: [],
         lastAssistantMsgId: null,
       }));
+
+      // Broadcast to mobile clients via session-message event
+      import('@tauri-apps/api/event').then(({ emit }) => {
+        emit('session-message', {
+          session_id: activeSessionId,
+          message: saved,
+        });
+      }).catch(() => {});
 
       // Create checkpoint before sending to Claude
       const project = projects.find((p) => p.id === activeProjectId);
@@ -643,6 +706,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     switch (eventType) {
       case 'system_init': {
+        // If this event is for the active session and we're not streaming yet,
+        // mark as streaming (mobile or another source initiated it)
+        if (!isBackground && !get().isStreaming) {
+          set({ isStreaming: true });
+        }
+
         // Save the Claude CLI session ID back to DB so --resume works on next message
         const claudeSessionId = data.session_id ?? data.sessionId ?? '';
         if (claudeSessionId && eventSessionId) {
@@ -823,4 +892,5 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleRightPanel: () => set((s) => ({ rightPanelVisible: !s.rightPanelVisible })),
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
+  setGitSubTab: (tab) => set({ gitSubTab: tab }),
 }));
