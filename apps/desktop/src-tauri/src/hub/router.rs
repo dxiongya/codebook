@@ -160,6 +160,13 @@ impl HubRouter {
             }
         }
 
+        // Check for duplicate path
+        if let Ok(existing) = self.db.list_projects() {
+            if existing.iter().any(|p| p.path == path_str.as_ref()) {
+                return HubResponse::error(&req.request_id, "Project with this path already exists");
+            }
+        }
+
         // Notify desktop UI
         let _ = self.app.emit("session-message-remote", serde_json::json!({
             "type": "project_created",

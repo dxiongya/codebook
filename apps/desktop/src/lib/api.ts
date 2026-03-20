@@ -132,6 +132,9 @@ export const getGitSnapshot = (projectPath: string) =>
 export const importCliSessions = (projectPath: string, projectId: string) =>
   invoke<Session[]>('import_cli_sessions', { projectPath, projectId });
 
+export const syncCliSession = (sessionId: string, projectPath: string) =>
+  invoke<number>('sync_cli_session', { sessionId, projectPath });
+
 // Streaming buffer
 export const isSessionStreaming = (sessionId: string) =>
   invoke<boolean>('is_session_streaming', { sessionId });

@@ -595,6 +595,148 @@ fn import_cli_sessions(
 }
 
 // ---------------------------------------------------------------------------
+// Tauri commands – CLI session sync
+// ---------------------------------------------------------------------------
+
+/// Incrementally sync a CLI session's conversation file with the DB.
+/// Returns the number of new messages imported.
+#[tauri::command]
+fn sync_cli_session(
+    db: State<DbState>,
+    session_id: String,
+    project_path: String,
+) -> Result<u32, String> {
+    // Look up the claude_session_id
+    let claude_sid = {
+        let conn = db.0.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT claude_session_id FROM sessions WHERE id = ?1")
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt.query(rusqlite::params![session_id]).map_err(|e| e.to_string())?;
+        match rows.next().map_err(|e| e.to_string())? {
+            Some(row) => row.get::<_, Option<String>>(0).unwrap_or(None),
+            None => None,
+        }
+    };
+
+    let claude_sid = match claude_sid {
+        Some(s) if !s.is_empty() => s,
+        _ => return Ok(0), // Not a CLI session
+    };
+
+    // Build conversation file path
+    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
+    let encoded_project = project_path.replace('/', "-");
+    let conv_path = home.join(".claude").join("projects").join(&encoded_project).join(format!("{}.jsonl", claude_sid));
+
+    if !conv_path.exists() {
+        return Ok(0);
+    }
+
+    // Get existing message count and last timestamp
+    let existing_count: u32 = {
+        let conn = db.0.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM messages WHERE session_id = ?1")
+            .map_err(|e| e.to_string())?;
+        stmt.query_row(rusqlite::params![session_id], |row| row.get(0))
+            .unwrap_or(0)
+    };
+
+    // Parse all messages from conversation file
+    let conv_content = std::fs::read_to_string(&conv_path)
+        .map_err(|e| format!("Failed to read conversation file: {}", e))?;
+
+    #[derive(serde::Deserialize)]
+    struct ConvEntry {
+        #[serde(rename = "type")]
+        entry_type: Option<String>,
+        message: Option<ConvMessage>,
+        timestamp: Option<serde_json::Value>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct ConvMessage {
+        role: Option<String>,
+        content: Option<serde_json::Value>,
+    }
+
+    struct ParsedMsg {
+        role: String,
+        content: String,
+        timestamp: i64,
+    }
+
+    let mut all_messages: Vec<ParsedMsg> = Vec::new();
+    let mut msg_index: i64 = 0;
+
+    for line in conv_content.lines() {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+        let entry: ConvEntry = match serde_json::from_str(line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let entry_type = match &entry.entry_type {
+            Some(t) => t.clone(),
+            None => continue,
+        };
+        if entry_type != "user" && entry_type != "assistant" { continue; }
+        let msg = match entry.message { Some(m) => m, None => continue };
+        let role = match &msg.role { Some(r) => r.clone(), None => continue };
+        if role != "user" && role != "assistant" { continue; }
+        let content_val = match msg.content { Some(c) => c, None => continue };
+
+        let ts = match &entry.timestamp {
+            Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(msg_index),
+            Some(serde_json::Value::String(s)) => {
+                chrono::DateTime::parse_from_rfc3339(s)
+                    .map(|dt| dt.timestamp_millis())
+                    .unwrap_or(msg_index)
+            }
+            _ => msg_index,
+        };
+        msg_index += 1;
+
+        let content_str = match role.as_str() {
+            "user" => match &content_val {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Array(arr) => {
+                    let texts: Vec<String> = arr.iter().filter_map(|block| {
+                        block.as_object().and_then(|obj| {
+                            if obj.get("type").and_then(|t| t.as_str()) == Some("text") {
+                                obj.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
+                            } else { None }
+                        })
+                    }).collect();
+                    if texts.is_empty() { continue; }
+                    texts.join("\n")
+                }
+                _ => continue,
+            },
+            "assistant" => serde_json::to_string(&content_val).unwrap_or_default(),
+            _ => continue,
+        };
+
+        if content_str.is_empty() { continue; }
+        all_messages.push(ParsedMsg { role, content: content_str, timestamp: ts });
+    }
+
+    all_messages.sort_by_key(|m| m.timestamp);
+
+    // Only import messages beyond what we already have
+    let new_count = all_messages.len() as u32;
+    if new_count <= existing_count {
+        return Ok(0); // No new messages
+    }
+
+    let to_import = &all_messages[existing_count as usize..];
+    for msg in to_import {
+        let _ = db.0.save_message(&session_id, &msg.role, &msg.content, None, None, None);
+    }
+
+    Ok(to_import.len() as u32)
+}
+
+// ---------------------------------------------------------------------------
 // Tauri commands – Chat (async, interacts with Claude CLI)
 // ---------------------------------------------------------------------------
 
@@ -1168,8 +1310,9 @@ pub fn run() {
             update_session_claude_id,
             is_session_streaming,
             get_streaming_buffer,
-            // CLI import
+            // CLI import + sync
             import_cli_sessions,
+            sync_cli_session,
             // File explorer
             list_dir,
             read_file_content,

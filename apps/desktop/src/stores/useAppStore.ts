@@ -455,6 +455,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       } catch {
         /* ignore */
       }
+
+      // Sync CLI session: check for new messages from terminal usage
+      if (session?.claude_session_id) {
+        const project = get().projects.find((p) => p.id === get().activeProjectId);
+        if (project) {
+          try {
+            const newCount = await api.syncCliSession(id, project.path);
+            if (newCount > 0) {
+              // Reload messages to include newly synced ones
+              const freshMessages = await api.getMessages(id, PAGE_SIZE);
+              set({ messages: freshMessages.map(toDisplayMessage), hasMoreMessages: freshMessages.length >= PAGE_SIZE });
+            }
+          } catch { /* ignore sync errors */ }
+        }
+      }
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
