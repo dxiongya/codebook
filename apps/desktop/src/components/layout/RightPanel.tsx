@@ -720,7 +720,7 @@ export function RightPanel() {
       style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
     >
       {/* tabs — pill style (design: h44, gap 4) */}
-      <div className="flex items-center shrink-0" style={{ height: 40, padding: '0 12px', gap: 2, borderBottom: '1px solid var(--cb-border)' }}>
+      <div className="flex items-center shrink-0" style={{ height: 40, padding: '0 12px', gap: 2, borderBottom: '1px solid var(--cb-border-subtle)' }}>
         {([
           { key: 'git' as const, label: 'Git', icon: <GitBranch size={12} /> },
           { key: 'files' as const, label: 'Files', icon: <Folder size={12} /> },
@@ -767,7 +767,7 @@ export function RightPanel() {
           <>
             {/* Repo selector (always visible) */}
             {gitRepos.length > 1 && (
-              <div className="flex shrink-0 overflow-x-auto" style={{ padding: '6px 10px', gap: 4, borderBottom: '1px solid var(--cb-border)' }}>
+              <div className="flex shrink-0 overflow-x-auto" style={{ padding: '6px 10px', gap: 4, borderBottom: '1px solid var(--cb-border-subtle)' }}>
                 {gitRepos.map((r) => {
                   const isActive = r.path === activeRepoPath;
                   return (
@@ -835,7 +835,7 @@ export function RightPanel() {
             </div>
 
             {/* git sub-tabs (design: h37, font 11) */}
-            <div className="flex items-center shrink-0" style={{ padding: '4px 12px', gap: 2, borderBottom: '1px solid var(--cb-border)' }}>
+            <div className="flex items-center shrink-0" style={{ padding: '4px 12px', gap: 2, borderBottom: '1px solid var(--cb-border-subtle)' }}>
               {([
                 { key: 'commit' as GitSubTab, label: 'Commit', icon: <GitCommitHorizontal size={11} /> },
                 { key: 'update' as GitSubTab, label: 'Update', icon: <GitPullRequest size={11} /> },
@@ -1005,7 +1005,7 @@ export function RightPanel() {
               </div>
 
             {/* commit section (design: padding 12x16, gap 10) */}
-            <div className="flex flex-col shrink-0" style={{ padding: '10px 14px', gap: 8, borderTop: '1px solid var(--cb-border)' }}>
+            <div className="flex flex-col shrink-0" style={{ padding: '10px 14px', gap: 8, borderTop: '1px solid var(--cb-border-subtle)' }}>
               {/* header */}
               <div className="flex items-center justify-between">
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 700 }}>Commit</span>
@@ -1221,7 +1221,7 @@ export function RightPanel() {
 
           {/* file viewer — Monaco editor */}
           {viewingFile && (
-            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid var(--cb-border)', minHeight: 0 }}>
+            <div className="flex-1 flex flex-col" style={{ borderTop: '1px solid var(--cb-border-subtle)', minHeight: 0 }}>
               {/* file header */}
               <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: 'var(--cb-bg-code)' }}>
                 <div className="flex items-center" style={{ gap: 8 }}>
@@ -1289,7 +1289,7 @@ export function RightPanel() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* top bar */}
-            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid var(--cb-border)', background: 'var(--cb-bg-code)' }}>
+            <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid var(--cb-border-subtle)', background: 'var(--cb-bg-code)' }}>
               <div className="flex items-center" style={{ gap: 8 }}>
                 <span style={{ color: 'var(--cb-accent)', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 600 }}>{fullscreenFile.path.split('/').pop()}</span>
@@ -1382,7 +1382,7 @@ export function RightPanel() {
               {/* modal header with prev/next navigation */}
               <div
                 className="flex items-center justify-between shrink-0"
-                style={{ padding: '8px 20px', borderBottom: '1px solid var(--cb-border)', background: 'var(--cb-bg-code)' }}
+                style={{ padding: '8px 20px', borderBottom: '1px solid var(--cb-border-subtle)', background: 'var(--cb-bg-code)' }}
               >
                 {/* left: navigation + filename */}
                 <div className="flex items-center" style={{ gap: 10 }}>

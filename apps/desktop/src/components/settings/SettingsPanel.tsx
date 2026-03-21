@@ -1094,7 +1094,7 @@ export function SettingsPanel() {
           className="flex items-center justify-between shrink-0"
           style={{
             padding: '12px 20px',
-            borderBottom: '1px solid var(--cb-border)',
+            borderBottom: '1px solid var(--cb-border-subtle)',
           }}
         >
           <span style={{ color: 'var(--cb-text-primary)', fontSize: 14, fontWeight: 700 }}>
@@ -1128,7 +1128,7 @@ export function SettingsPanel() {
             style={{
               width: 200,
               background: 'var(--cb-bg-primary)',
-              borderRight: '1px solid var(--cb-border)',
+              borderRight: '1px solid var(--cb-border-subtle)',
               padding: '16px 0',
             }}
           >

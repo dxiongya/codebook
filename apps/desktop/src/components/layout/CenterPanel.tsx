@@ -789,7 +789,7 @@ export function CenterPanel() {
       {/* header */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid var(--cb-border)' }}
+        style={{ height: 42, padding: '0 24px', borderBottom: '1px solid var(--cb-border-subtle)' }}
       >
         <div className="flex items-center" style={{ gap: 10 }}>
           <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>

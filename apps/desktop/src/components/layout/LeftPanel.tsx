@@ -246,7 +246,7 @@ export function LeftPanel() {
 
       {/* Divider between projects and sessions */}
       {activeProjectId && (
-        <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid var(--cb-border)' }}>
+        <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid var(--cb-border-subtle)' }}>
           <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>SESSIONS</span>
         </div>
       )}
@@ -367,7 +367,7 @@ export function LeftPanel() {
 
       {/* References */}
       {activeProjectId && (
-        <div style={{ borderTop: '1px solid var(--cb-border)', padding: '8px 8px 4px 8px' }}>
+        <div style={{ borderTop: '1px solid var(--cb-border-subtle)', padding: '8px 8px 4px 8px' }}>
           <div className="flex items-center justify-between" style={{ padding: '4px 8px' }}>
             <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>REFERENCES</span>
             <Plus
@@ -413,7 +413,7 @@ export function LeftPanel() {
       {/* Bottom bar */}
       <div
         className="flex items-center justify-between shrink-0"
-        style={{ borderTop: '1px solid var(--cb-border)', padding: '8px 16px' }}
+        style={{ borderTop: '1px solid var(--cb-border-subtle)', padding: '8px 16px' }}
       >
         <Settings
           size={15}
