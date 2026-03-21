@@ -75,6 +75,9 @@ export const gitCommit = (projectPath: string, message: string, files?: string[]
 export const gitPush = (projectPath: string) =>
   invoke<void>('git_push', { projectPath });
 
+export const gitPull = (projectPath: string) =>
+  invoke<string>('git_pull', { projectPath });
+
 export const gitBranch = (projectPath: string) =>
   invoke<string>('git_branch', { projectPath });
 
@@ -134,6 +137,9 @@ export const importCliSessions = (projectPath: string, projectId: string) =>
 
 export const syncCliSession = (sessionId: string, projectPath: string) =>
   invoke<number>('sync_cli_session', { sessionId, projectPath });
+
+export const generateCommitMessage = (projectPath: string, files?: string[]) =>
+  invoke<string>('generate_commit_message', { projectPath, files: files ?? null });
 
 // Streaming buffer
 export const isSessionStreaming = (sessionId: string) =>

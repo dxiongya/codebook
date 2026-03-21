@@ -316,6 +316,62 @@ fn get_git_snapshot(project_path: String) -> Result<GitSnapshot, String> {
     })
 }
 
+/// Generate a commit message using Claude CLI based on staged changes
+#[tauri::command]
+async fn generate_commit_message(project_path: String, files: Option<Vec<String>>) -> Result<String, String> {
+    // Get the diff content for context
+    let diff_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "diff", "--staged"])
+        .output()
+        .or_else(|_| {
+            // If nothing staged, get unstaged diff
+            std::process::Command::new("git")
+                .args(["-C", &project_path, "diff"])
+                .output()
+        })
+        .map_err(|e| format!("Failed to get diff: {}", e))?;
+
+    let diff = String::from_utf8_lossy(&diff_output.stdout);
+
+    // Truncate diff if too long (keep first 3000 chars)
+    let diff_context = if diff.len() > 3000 {
+        format!("{}...\n[truncated, {} total chars]", &diff[..3000], diff.len())
+    } else {
+        diff.to_string()
+    };
+
+    if diff_context.trim().is_empty() {
+        return Err("No changes to generate commit message for".to_string());
+    }
+
+    // Get diff stat for summary
+    let stat_output = std::process::Command::new("git")
+        .args(["-C", &project_path, "diff", "--stat"])
+        .output()
+        .map_err(|e| format!("Failed to get diff stat: {}", e))?;
+    let stat = String::from_utf8_lossy(&stat_output.stdout);
+
+    let prompt = format!(
+        "Generate a concise git commit message for these changes. Use conventional commits format (feat/fix/refactor/docs/chore). One line summary, optionally followed by a blank line and bullet points for details. Be specific about what changed. Output ONLY the commit message, nothing else.\n\nDiff stat:\n{}\n\nDiff:\n{}",
+        stat.trim(),
+        diff_context
+    );
+
+    let output = std::process::Command::new("claude")
+        .args(["-p", &prompt, "--max-tokens", "200", "--model", "haiku"])
+        .current_dir(&project_path)
+        .output()
+        .map_err(|e| format!("Failed to run claude: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Claude failed: {}", stderr));
+    }
+
+    let msg = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(msg)
+}
+
 // ---------------------------------------------------------------------------
 // Tauri commands – Import CLI sessions
 // ---------------------------------------------------------------------------
@@ -973,6 +1029,19 @@ fn git_push(project_path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn git_pull(project_path: String) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .args(["-C", &project_path, "pull"])
+        .output()
+        .map_err(|e| format!("Failed to run git pull: {}", e))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("git pull failed: {}", stderr));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[tauri::command]
 fn git_branch(project_path: String) -> Result<String, String> {
     git::git_branch(&project_path)
 }
@@ -1313,6 +1382,7 @@ pub fn run() {
             // CLI import + sync
             import_cli_sessions,
             sync_cli_session,
+            generate_commit_message,
             // File explorer
             list_dir,
             read_file_content,
@@ -1338,6 +1408,7 @@ pub fn run() {
             git_diff_file,
             git_commit,
             git_push,
+            git_pull,
             git_branch,
             git_list_branches,
             git_checkout,

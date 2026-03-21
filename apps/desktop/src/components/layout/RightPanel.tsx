@@ -481,6 +481,9 @@ export function RightPanel() {
   const [viewingFilePath, setViewingFilePath] = useState<string | null>(null);
   const [fullscreenFile, setFullscreenFile] = useState<FileContent | null>(null);
   const [commitFeedback, setCommitFeedback] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullFeedback, setPullFeedback] = useState<string | null>(null);
   const [pushFeedback, setPushFeedback] = useState<string | null>(null);
   const [gitError, setGitError] = useState<string | null>(null);
 
@@ -668,6 +671,24 @@ export function RightPanel() {
   };
 
   // Push
+  const handlePull = async () => {
+    if (!effectiveGitPath || pulling) return;
+    setPulling(true);
+    setPullFeedback(null);
+    try {
+      await api.gitPull(effectiveGitPath);
+      setPullFeedback('pulled');
+      setTimeout(() => setPullFeedback(null), 3000);
+      await fetchGitData();
+    } catch (err: any) {
+      const msg = typeof err === 'string' ? err : err?.message ?? 'Pull failed';
+      setPullFeedback(`error: ${msg}`);
+      setTimeout(() => setPullFeedback(null), 4000);
+    } finally {
+      setPulling(false);
+    }
+  };
+
   const handlePush = async () => {
     if (!projectPath) return;
     try {
@@ -774,7 +795,7 @@ export function RightPanel() {
             <div className="flex items-center justify-between shrink-0" style={{ padding: '2px 14px 6px' }}>
               <div className="flex items-center" style={{ gap: 10 }}>
                 <RefreshCw size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={fetchGitData} />
-                <ArrowDown size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} />
+                <ArrowDown size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={handlePull} />
                 <ArrowUp size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={handlePush} />
                 <History size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} />
               </div>
@@ -1002,15 +1023,30 @@ export function RightPanel() {
               {/* action buttons */}
               <div className="flex" style={{ gap: 6 }}>
                 <button
-                  onClick={() => {/* generate - placeholder */}}
+                  onClick={async () => {
+                    if (!projectPath || generating) return;
+                    setGenerating(true);
+                    try {
+                      const msg = await api.generateCommitMessage(projectPath, stagedCount === changes.length ? undefined : Array.from(stagedFiles));
+                      setCommitMsg(msg);
+                    } catch (err: any) {
+                      setCommitFeedback(`error: ${err?.message ?? err}`);
+                      setTimeout(() => setCommitFeedback(null), 3000);
+                    } finally {
+                      setGenerating(false);
+                    }
+                  }}
+                  disabled={generating || changes.length === 0}
                   style={{
                     padding: '5px 10px', background: 'transparent', border: '1px solid var(--cb-border)',
-                    color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                    color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500,
+                    cursor: generating ? 'wait' : 'pointer', fontFamily: 'inherit',
                     borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
+                    opacity: generating ? 0.6 : 1,
                   }}
                 >
                   <Sparkles size={11} style={{ color: 'var(--cb-accent)' }} />
-                  Generate
+                  {generating ? 'Generating...' : 'Generate'}
                 </button>
                 <button
                   onClick={handleCommit}
@@ -1042,12 +1078,59 @@ export function RightPanel() {
             {/* Update sub-tab */}
             {useAppStore.getState().gitSubTab === 'update' && (
               <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
-                <div className="flex items-center" style={{ gap: 8, padding: '12px 14px', borderRadius: 8, background: 'var(--cb-bg-elevated)', marginBottom: 16 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ADE80' }} />
-                  <span style={{ color: '#4ADE80', fontSize: 12 }}>Up to date with origin/{branch || 'main'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {/* Pull button */}
+                  <button
+                    onClick={handlePull}
+                    disabled={pulling}
+                    style={{
+                      padding: '10px 14px', borderRadius: 8, border: '1px solid var(--cb-border)',
+                      background: 'var(--cb-bg-elevated)', color: 'var(--cb-text-primary)',
+                      fontSize: 12, fontWeight: 500, cursor: pulling ? 'wait' : 'pointer',
+                      fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+                      opacity: pulling ? 0.6 : 1, width: '100%',
+                    }}
+                  >
+                    <ArrowDown size={14} style={{ color: 'var(--cb-accent)' }} />
+                    {pulling ? 'Pulling...' : `Pull from origin/${branch || 'main'}`}
+                  </button>
+
+                  {/* Feedback */}
+                  {pullFeedback && (
+                    <div style={{
+                      padding: '8px 12px', borderRadius: 6, fontSize: 11,
+                      color: pullFeedback.startsWith('error') ? 'var(--cb-accent-red)' : 'var(--cb-accent-green)',
+                      background: 'var(--cb-bg-elevated)',
+                    }}>
+                      {pullFeedback === 'pulled' ? '✓ Pull complete' : pullFeedback}
+                    </div>
+                  )}
+
+                  {/* Push button */}
+                  <button
+                    onClick={handlePush}
+                    style={{
+                      padding: '10px 14px', borderRadius: 8, border: 'none',
+                      background: 'var(--cb-accent)', color: 'var(--cb-bg-primary)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+                      width: '100%',
+                    }}
+                  >
+                    <ArrowUp size={14} />
+                    Push to origin/{branch || 'main'}
+                  </button>
+
+                  {pushFeedback && (
+                    <div style={{
+                      padding: '8px 12px', borderRadius: 6, fontSize: 11,
+                      color: pushFeedback.startsWith('error') ? 'var(--cb-accent-red)' : 'var(--cb-accent-green)',
+                      background: 'var(--cb-bg-elevated)',
+                    }}>
+                      {pushFeedback === 'pushed' ? '✓ Push complete' : pushFeedback}
+                    </div>
+                  )}
                 </div>
-                <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 700 }}>Recent Pulls</span>
-                <div style={{ marginTop: 12, color: 'var(--cb-text-dim)', fontSize: 12 }}>No recent pull history</div>
               </div>
             )}
 
