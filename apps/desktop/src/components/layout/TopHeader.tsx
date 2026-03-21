@@ -72,7 +72,7 @@ export function TopHeader() {
 
       {/* Brand */}
       <span
-        className="font-semibold text-sm cursor-default ml-4"
+        className="font-semibold text-sm cursor-default ml-6"
         style={{ color: 'var(--cb-text-primary)' }}
         onMouseDown={async (e) => {
           if (e.detail === 2) return;

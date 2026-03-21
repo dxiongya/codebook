@@ -5,14 +5,14 @@
 
 :root {
   /* Default: Codebook Warm — deep + warm, readable at 13px mono */
-  --cb-bg-primary: #161514;        /* deep warm */
-  --cb-bg-sidebar: #1B1A19;        /* sidebar — subtle lift */
+  --cb-bg-primary: #161514;        /* center editor */
+  --cb-bg-sidebar: #1D1C1A;        /* left/right panels — distinct warm tint */
   --cb-bg-elevated: #242322;       /* cards, inputs */
   --cb-bg-active: #302F2D;        /* hover, selected */
   --cb-bg-code: #131211;          /* code blocks */
   --cb-bg-rail: #100F0E;          /* deepest */
-  --cb-border: #3D3A36;            /* panel separators — clearly visible */
-  --cb-border-subtle: #222019;     /* internal dividers — barely visible */
+  --cb-border: #2F2C28;            /* panel separators — visible but not harsh */
+  --cb-border-subtle: #211F1C;     /* internal dividers */
   --cb-border-active: #EDB449;
   --cb-text-primary: #DBD8D0;      /* warm white — between #CCC and #F0F */
   --cb-text-secondary: #B5B2A9;    /* warm secondary — readable */
@@ -38,8 +38,8 @@
   --cb-bg-active: #333333;        /* stronger selection */
   --cb-bg-code: #1A1A1A;
   --cb-bg-rail: #141414;
-  --cb-border: #444444;           /* panel separators — clearly visible */
-  --cb-border-subtle: #282828;   /* internal dividers */
+  --cb-border: #353535;           /* panel separators */
+  --cb-border-subtle: #262626;   /* internal dividers */
   --cb-border-active: #E5A54B;
   --cb-text-primary: #DCDCDC;
   --cb-text-secondary: #B8B8B8;
@@ -64,8 +64,8 @@
   --cb-bg-active: #323332;
   --cb-bg-code: #141514;
   --cb-bg-rail: #111211;
-  --cb-border: #444444;
-  --cb-border-subtle: #282928;
+  --cb-border: #353535;
+  --cb-border-subtle: #262626;
   --cb-border-active: #E5A54B;
   --cb-text-primary: #E4E4EA;
   --cb-text-secondary: #B4B4BC;
