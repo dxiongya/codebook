@@ -4,20 +4,20 @@
 /* ─── Theme System ─────────────────────────────────────────────────────────── */
 
 :root {
-  /* Default: Codebook Warm — inspired by OpenChamber's OKLCH warm palette */
-  --cb-bg-primary: #151413;        /* deep warm black — oklch(0.16 0.01 30) */
-  --cb-bg-sidebar: #1A1918;        /* sidebar — slightly lighter, distinct */
-  --cb-bg-elevated: #232221;       /* cards, inputs, tabs */
-  --cb-bg-active: #2E2D2B;        /* hover, selected items */
-  --cb-bg-code: #121110;          /* code blocks — deepest content */
-  --cb-bg-rail: #0F0E0D;          /* activity bar rail */
-  --cb-border: #393836;            /* warm border — oklch(0.31 0.01 35) */
-  --cb-border-active: #EDB449;    /* golden sand accent */
-  --cb-text-primary: #CDCCC3;      /* warm off-white — oklch(0.85 0.02 90) */
-  --cb-text-secondary: #ABA9A0;    /* warm secondary */
-  --cb-text-muted: #807E76;        /* warm muted — still readable */
-  --cb-text-dim: #5C5A53;          /* warm dim — hints, line numbers */
-  --cb-accent: #EDB449;            /* golden sand — oklch(0.77 0.17 85) */
+  /* Default: Codebook Warm — deep + warm, readable at 13px mono */
+  --cb-bg-primary: #161514;        /* deep warm */
+  --cb-bg-sidebar: #1B1A19;        /* sidebar — subtle lift */
+  --cb-bg-elevated: #242322;       /* cards, inputs */
+  --cb-bg-active: #302F2D;        /* hover, selected */
+  --cb-bg-code: #131211;          /* code blocks */
+  --cb-bg-rail: #100F0E;          /* deepest */
+  --cb-border: #2E2D2B;            /* subtler border — less harsh line feel */
+  --cb-border-active: #EDB449;
+  --cb-text-primary: #DBD8D0;      /* warm white — between #CCC and #F0F */
+  --cb-text-secondary: #B5B2A9;    /* warm secondary — readable */
+  --cb-text-muted: #8A877F;        /* warm muted */
+  --cb-text-dim: #636059;          /* warm dim */
+  --cb-accent: #EDB449;            /* golden sand */
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
   --cb-accent-blue: #60A5FA;
