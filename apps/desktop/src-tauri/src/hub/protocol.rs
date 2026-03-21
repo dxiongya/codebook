@@ -104,6 +104,7 @@ pub mod actions {
     pub const GIT_DIFF: &str = "git.diff";
     pub const GIT_COMMIT: &str = "git.commit";
     pub const GIT_PUSH: &str = "git.push";
+    pub const GIT_PULL: &str = "git.pull";
 
     // Files
     pub const FILES_LIST: &str = "files.list";

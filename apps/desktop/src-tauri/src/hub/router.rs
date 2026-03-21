@@ -79,6 +79,7 @@ impl HubRouter {
             actions::GIT_DIFF => self.handle_git_diff(&req).await,
             actions::GIT_COMMIT => self.handle_git_commit(&req).await,
             actions::GIT_PUSH => self.handle_git_push(&req).await,
+            actions::GIT_PULL => self.handle_git_pull(&req).await,
 
             // Files
             actions::FILES_LIST => self.handle_files_list(&req).await,
@@ -486,6 +487,27 @@ impl HubRouter {
         match crate::git::git_push(path) {
             Ok(_) => HubResponse::ok(&req.request_id, serde_json::json!({ "pushed": true })),
             Err(e) => HubResponse::error(&req.request_id, &e.to_string()),
+        }
+    }
+
+    async fn handle_git_pull(&self, req: &HubRequest) -> HubResponse {
+        let path = req.payload.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path.is_empty() {
+            return HubResponse::error(&req.request_id, "path required");
+        }
+        let output = std::process::Command::new("git")
+            .args(["-C", path, "pull"])
+            .output();
+        match output {
+            Ok(o) if o.status.success() => {
+                let msg = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                HubResponse::ok(&req.request_id, serde_json::json!({ "message": msg }))
+            }
+            Ok(o) => {
+                let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                HubResponse::error(&req.request_id, &format!("git pull failed: {}", err))
+            }
+            Err(e) => HubResponse::error(&req.request_id, &format!("Failed to run git: {}", e)),
         }
     }
 
