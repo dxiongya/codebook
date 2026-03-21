@@ -152,7 +152,7 @@ export function LeftPanel() {
       ref={containerRef}
       data-no-select
       className="flex flex-col h-full"
-      style={{ background: 'var(--cb-bg-sidebar)', borderRight: '1px solid var(--cb-border)' }}
+      style={{ background: 'var(--cb-bg-sidebar)' }}
     >
       {/* PROJECTS header (fixed) */}
       <div className="flex items-center justify-between shrink-0" style={{ padding: '10px 16px 4px 16px' }}>

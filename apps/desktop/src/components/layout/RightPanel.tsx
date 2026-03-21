@@ -707,7 +707,7 @@ export function RightPanel() {
     return (
       <div
         className="flex flex-col h-full items-center justify-center"
-        style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
+        style={{ background: 'var(--cb-bg-sidebar)' }}
       >
         <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>// no project selected</span>
       </div>
@@ -717,7 +717,7 @@ export function RightPanel() {
   return (
     <div
       className="flex flex-col h-full"
-      style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
+      style={{ background: 'var(--cb-bg-sidebar)' }}
     >
       {/* tabs — pill style (design: h44, gap 4) */}
       <div className="flex items-center shrink-0" style={{ height: 40, padding: '0 12px', gap: 2, borderBottom: '1px solid var(--cb-border-subtle)' }}>
