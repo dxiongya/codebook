@@ -552,6 +552,11 @@ export function CenterPanel() {
   }, [claudeInitData]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const slashActiveRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    slashActiveRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [slashIndex]);
+
   const filteredSkills = slashQuery !== null
     ? SKILLS.filter((s) => s.cmd.toLowerCase().includes(slashQuery.toLowerCase()))
     : [];
@@ -1067,6 +1072,7 @@ export function CenterPanel() {
                 return (
                   <div
                     key={skill.cmd}
+                    ref={i === slashIndex ? slashActiveRef : undefined}
                     onClick={() => {
                       if (editorRef.current) {
                         editorRef.current.textContent = skill.cmd;
