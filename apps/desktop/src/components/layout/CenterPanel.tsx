@@ -510,6 +510,26 @@ export function CenterPanel() {
   ];
   const [extraModels, setExtraModels] = useState<string[]>([]);
 
+  // Slash command autocomplete
+  const SKILLS = [
+    { cmd: '/commit', desc: 'Commit staged changes with AI message', icon: 'git' },
+    { cmd: '/review', desc: 'Review current code changes', icon: 'sparkle' },
+    { cmd: '/compact', desc: 'Compact conversation history', icon: 'compress' },
+    { cmd: '/help', desc: 'Show available commands', icon: 'help' },
+    { cmd: '/config', desc: 'Open settings panel', icon: 'settings' },
+    { cmd: '/clear', desc: 'Clear current conversation', icon: 'clear' },
+    { cmd: '/find', desc: 'Find and explain code', icon: 'search' },
+    { cmd: '/impeccable:polish', desc: 'Final quality pass on code', icon: 'sparkle' },
+    { cmd: '/impeccable:harden', desc: 'Error handling + edge cases', icon: 'shield' },
+    { cmd: '/impeccable:audit', desc: 'Comprehensive quality audit', icon: 'check' },
+    { cmd: '/impeccable:optimize', desc: 'Performance optimization', icon: 'speed' },
+  ];
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const filteredSkills = slashQuery !== null
+    ? SKILLS.filter((s) => s.cmd.toLowerCase().includes(slashQuery.toLowerCase()))
+    : [];
+
   useEffect(() => {
     api.getSetting('known_models').then((val) => {
       if (val) {
@@ -751,6 +771,40 @@ export function CenterPanel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Slash command navigation
+    if (slashQuery !== null && filteredSkills.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIndex((i) => Math.min(i + 1, filteredSkills.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const skill = filteredSkills[slashIndex];
+        if (skill && editorRef.current) {
+          editorRef.current.textContent = skill.cmd;
+          // Move cursor to end
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        }
+        setSlashQuery(null);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setSlashQuery(null);
+        return;
+      }
+    }
+
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       handleSend();
@@ -958,6 +1012,47 @@ export function CenterPanel() {
       {/* input area — drop zone for files */}
       <div
         className="shrink-0"
+        style={{ position: 'relative' }}
+      >
+        {/* Slash command autocomplete dropdown */}
+        {slashQuery !== null && filteredSkills.length > 0 && (
+          <div style={{
+            position: 'absolute', bottom: '100%', left: 24, right: 24,
+            marginBottom: 6, background: 'var(--cb-bg-sidebar)',
+            border: '1px solid var(--cb-border)', borderRadius: 8,
+            overflow: 'hidden', zIndex: 20,
+            boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
+          }}>
+            {filteredSkills.map((skill, i) => (
+              <div
+                key={skill.cmd}
+                onClick={() => {
+                  if (editorRef.current) {
+                    editorRef.current.textContent = skill.cmd;
+                    const range = document.createRange();
+                    range.selectNodeContents(editorRef.current);
+                    range.collapse(false);
+                    window.getSelection()?.removeAllRanges();
+                    window.getSelection()?.addRange(range);
+                  }
+                  setSlashQuery(null);
+                }}
+                style={{
+                  padding: '7px 12px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: i === slashIndex ? 'var(--cb-bg-active)' : 'transparent',
+                }}
+              >
+                <span style={{ color: 'var(--cb-accent)', fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 10 }}>/</span>
+                <span style={{ color: i === slashIndex ? 'var(--cb-text-primary)' : 'var(--cb-text-secondary)', fontSize: 12, fontWeight: 600 }}>{skill.cmd.slice(1)}</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, flex: 1 }}>{skill.desc}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div
+        className="shrink-0"
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1036,6 +1131,15 @@ export function CenterPanel() {
               contentEditable={!!activeSessionId}
               suppressContentEditableWarning
               onKeyDown={handleKeyDown}
+              onInput={() => {
+                const text = editorRef.current?.textContent ?? '';
+                if (text.startsWith('/')) {
+                  setSlashQuery(text.slice(1));
+                  setSlashIndex(0);
+                } else {
+                  if (slashQuery !== null) setSlashQuery(null);
+                }
+              }}
               onPaste={async (e) => {
                 const items = e.clipboardData?.items;
                 if (!items) return;
