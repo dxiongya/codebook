@@ -594,7 +594,7 @@ export function RightPanel() {
       const result = await api.gitDiffFile(effectiveGitPath, filePath);
       setDiffResult(result);
     } catch (err) {
-      console.error('Failed to load diff:', err);
+      // diff load failed silently
     } finally {
       setDiffLoading(false);
     }
@@ -805,7 +805,7 @@ export function RightPanel() {
                       setBranch(newBranch);
                       fetchGitData();
                     } catch (err: any) {
-                      console.error('checkout failed:', err);
+                      // checkout failed silently
                     }
                   }}
                   style={{

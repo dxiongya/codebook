@@ -80,15 +80,18 @@ function ThinkingBlockView({ block }: { block: DisplayThinkingBlock }) {
   return (
     <div
       className="flex items-center"
+      role="button"
+      tabIndex={0}
       onClick={() => setExpanded(!expanded)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(!expanded); } }}
       style={{ cursor: 'pointer', gap: 8, padding: '4px 0', paddingLeft: 0, marginLeft: 0 }}
     >
       {/* timeline dot */}
-      <Brain size={ICON_SIZE} style={{ color: '#8B7BC8', flexShrink: 0 }} />
+      <Brain size={ICON_SIZE} style={{ color: 'var(--cb-accent-purple)', flexShrink: 0 }} />
       {/* content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="flex items-center" style={{ gap: 6, lineHeight: '18px' }}>
-          <span style={{ color: '#8B7BC8', fontSize: 11, fontWeight: 400 }}>Thinking</span>
+          <span style={{ color: 'var(--cb-accent-purple)', fontSize: 11, fontWeight: 400 }}>Thinking</span>
           <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {summary ? `**${summary}**` : ''}
           </span>
@@ -973,7 +976,7 @@ export function CenterPanel() {
                     const savedPath = await api.savePastedImage(base64, project.path);
                     insertFileChip(savedPath, base64);
                   } catch (err) {
-                    console.error('Failed to save dropped image:', err);
+                    // image save failed
                   }
                 };
                 reader.readAsDataURL(file);
@@ -1024,7 +1027,7 @@ export function CenterPanel() {
                           const savedPath = await api.savePastedImage(base64, project.path);
                           insertFileChip(savedPath, base64);
                         } catch (err) {
-                          console.error('Failed to save pasted image:', err);
+                          // paste failed
                         }
                       };
                       reader.readAsDataURL(file);
@@ -1071,7 +1074,7 @@ export function CenterPanel() {
                         const savedPath = await api.savePastedImage(base64, project.path);
                         insertFileChip(savedPath, base64);
                       } catch (err) {
-                        console.error('Failed to save pasted image:', err);
+                        // paste failed
                       }
                     };
                     reader.readAsDataURL(blob);

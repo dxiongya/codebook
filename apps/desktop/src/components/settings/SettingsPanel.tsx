@@ -692,7 +692,7 @@ function RemoteSection() {
       }
       await fetchInfo();
     } catch (err) {
-      console.error('Failed to toggle remote server:', err);
+      // toggle failed
     }
     setLoading(false);
   };
@@ -704,7 +704,7 @@ function RemoteSection() {
       setPin(newPin);
       setPinExpiry(300); // 5 minutes
     } catch (err) {
-      console.error('Failed to generate PIN:', err);
+      // pin gen failed
     }
     setPinGenerating(false);
   };

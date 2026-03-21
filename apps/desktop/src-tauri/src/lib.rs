@@ -466,11 +466,14 @@ fn import_cli_sessions(
             continue;
         }
 
-        // Session name = first display text truncated to 30 chars
-        let name: String = if first_display.len() > 30 {
-            format!("{}...", &first_display[..30])
-        } else {
-            first_display.to_string()
+        // Session name = first display text truncated to 30 characters (UTF-8 safe)
+        let name: String = {
+            let chars: Vec<char> = first_display.chars().collect();
+            if chars.len() > 30 {
+                format!("{}...", chars[..30].iter().collect::<String>())
+            } else {
+                first_display.to_string()
+            }
         };
 
         // Create session in DB
