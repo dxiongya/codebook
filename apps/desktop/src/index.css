@@ -5,60 +5,73 @@
 
 :root {
   /* Default: Codebook Warm — tuned for readability + warmth */
-  --cb-bg-primary: #1E1B18;        /* slightly lifted from #1C1917 */
-  --cb-bg-sidebar: #211E1B;        /* distinct from primary — warmer, slightly lighter */
-  --cb-bg-elevated: #2A2724;       /* lifted from #262220 — cards, inputs */
-  --cb-bg-active: #373330;         /* lifted from #33302A — hover, selected */
-  --cb-bg-code: #191614;           /* lifted from #171412 — code blocks */
-  --cb-bg-rail: #171412;           /* deepest layer stays dark */
-  --cb-border: #3A3530;            /* lifted from #2A2520 — much more visible */
+  --cb-bg-primary: #1E1B18;
+  --cb-bg-sidebar: #221F1C;        /* warmer tint — distinct from editor */
+  --cb-bg-elevated: #2C2925;       /* cards, inputs — more contrast */
+  --cb-bg-active: #3A3632;         /* hover/selected — clear feedback */
+  --cb-bg-code: #191614;
+  --cb-bg-rail: #171412;
+  --cb-border: #3D3833;            /* warmer border — area separation */
   --cb-border-active: #E5A54B;
-  --cb-text-primary: #F0ECE8;      /* brighter from #E8E4E0 — more contrast */
-  --cb-text-secondary: #D0CBC6;    /* brighter from #C8C4BE */
-  --cb-text-muted: #A8A29C;        /* brighter from #9C9690 — still readable */
-  --cb-text-dim: #78726C;          /* brighter from #6B6560 — less invisible */
+  --cb-text-primary: #F2EEEA;      /* near-white warm */
+  --cb-text-secondary: #D4CFCA;
+  --cb-text-muted: #ACA6A0;
+  --cb-text-dim: #7D7770;
   --cb-accent: #E5A54B;
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
   --cb-accent-blue: #60A5FA;
   --cb-accent-purple: #A78BFA;
   --cb-accent-cyan: #06B6D4;
+  /* Semantic surfaces */
+  --cb-bg-success: #1A2E1A;        /* green-tinted bg for success states */
+  --cb-bg-error: #2E1A1A;          /* red-tinted bg for error states */
+  --cb-bg-info: #1A1E2E;           /* blue-tinted bg for info */
+  --cb-bg-warning: #2E261A;        /* amber-tinted bg for warnings */
 }
 
 [data-theme="cursor-ide"] {
-  --cb-bg-primary: #1E1E1E;        /* editor — classic VS Code dark */
-  --cb-bg-sidebar: #181818;        /* sidebar — slightly deeper */
-  --cb-bg-elevated: #252526;       /* tabs, inputs, cards */
-  --cb-bg-active: #2D2D2D;        /* selection, hover */
-  --cb-bg-code: #1A1A1A;          /* code blocks */
-  --cb-bg-rail: #141414;          /* activity bar — deepest */
-  --cb-border: #3C3C3C;           /* clear borders */
+  --cb-bg-primary: #1E1E1E;
+  --cb-bg-sidebar: #1B1B1B;        /* sidebar slightly deeper than editor */
+  --cb-bg-elevated: #282828;       /* clearer lift from primary */
+  --cb-bg-active: #333333;        /* stronger selection */
+  --cb-bg-code: #1A1A1A;
+  --cb-bg-rail: #141414;
+  --cb-border: #404040;           /* more visible borders */
   --cb-border-active: #E5A54B;
-  --cb-text-primary: #D4D4D4;     /* classic IDE text */
-  --cb-text-secondary: #B0B0B0;   /* secondary */
-  --cb-text-muted: #808080;       /* muted but readable */
-  --cb-text-dim: #5A5A5A;         /* line numbers, hints */
+  --cb-text-primary: #DCDCDC;     /* slightly brighter */
+  --cb-text-secondary: #B8B8B8;
+  --cb-text-muted: #888888;
+  --cb-text-dim: #606060;
   --cb-accent: #E5A54B;
-  --cb-accent-green: #4EC9B0;     /* teal green (Cursor style) */
-  --cb-accent-red: #F14C4C;       /* softer red */
-  --cb-accent-blue: #569CD6;      /* keyword blue */
-  --cb-accent-purple: #C586C0;    /* statement purple */
-  --cb-accent-cyan: #4FC1FF;      /* type cyan */
+  --cb-accent-green: #4EC9B0;
+  --cb-accent-red: #F14C4C;
+  --cb-accent-blue: #569CD6;
+  --cb-accent-purple: #C586C0;
+  --cb-accent-cyan: #4FC1FF;
+  --cb-bg-success: #1A2A20;
+  --cb-bg-error: #2A1A1A;
+  --cb-bg-info: #1A1E2A;
+  --cb-bg-warning: #2A241A;
 }
 
 [data-theme="anysphere-dark"] {
   --cb-bg-primary: #1A1B1A;
   --cb-bg-sidebar: #1D1E1D;
-  --cb-bg-elevated: #252625;
-  --cb-bg-active: #303130;
+  --cb-bg-elevated: #272827;
+  --cb-bg-active: #323332;
   --cb-bg-code: #141514;
   --cb-bg-rail: #111211;
-  --cb-border: #404040;
+  --cb-border: #424242;
   --cb-border-active: #E5A54B;
-  --cb-text-primary: #E2E2E8;
-  --cb-text-secondary: #B0B0B8;
-  --cb-text-muted: #888890;
-  --cb-text-dim: #5C5C62;
+  --cb-text-primary: #E4E4EA;
+  --cb-text-secondary: #B4B4BC;
+  --cb-text-muted: #8C8C94;
+  --cb-text-dim: #606068;
+  --cb-bg-success: #1A2A1A;
+  --cb-bg-error: #2A1A1A;
+  --cb-bg-info: #1A1A2A;
+  --cb-bg-warning: #2A241A;
   --cb-accent: #E5A54B;
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
