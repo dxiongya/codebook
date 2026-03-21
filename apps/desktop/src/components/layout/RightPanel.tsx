@@ -734,7 +734,7 @@ export function RightPanel() {
                 padding: '4px 12px',
                 fontSize: 11,
                 fontWeight: isActive ? 500 : 400,
-                color: isActive ? 'var(--cb-accent)' : 'var(--cb-text-muted)',
+                color: isActive ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
                 background: isActive ? 'var(--cb-bg-active)' : 'transparent',
                 border: isActive ? '1px solid var(--cb-border)' : '1px solid transparent',
                 borderRadius: 5,

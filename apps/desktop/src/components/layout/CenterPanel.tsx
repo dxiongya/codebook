@@ -795,7 +795,7 @@ export function CenterPanel() {
           <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>
             {activeSession?.name ?? 'No session'}
           </span>
-          <span style={{ background: 'var(--cb-accent)', color: 'var(--cb-bg-primary)', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 10, opacity: 0.85 }}>
+          <span style={{ background: 'var(--cb-bg-elevated)', color: 'var(--cb-text-muted)', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
             {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}
           </span>
         </div>
