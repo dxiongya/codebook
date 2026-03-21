@@ -156,7 +156,7 @@ export function LeftPanel() {
     >
       {/* PROJECTS header (fixed) */}
       <div className="flex items-center justify-between shrink-0" style={{ padding: '10px 16px 4px 16px' }}>
-        <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>PROJECTS</span>
+        <span style={{ color: 'var(--cb-accent)', fontSize: 10, fontWeight: 600, letterSpacing: 1, opacity: 0.6 }}>PROJECTS</span>
         <Plus
           size={14}
           style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }}
@@ -247,7 +247,7 @@ export function LeftPanel() {
       {/* Divider between projects and sessions */}
       {activeProjectId && (
         <div className="shrink-0" style={{ padding: '6px 16px', borderBottom: '1px solid var(--cb-border)' }}>
-          <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>SESSIONS</span>
+          <span style={{ color: 'var(--cb-accent)', fontSize: 10, fontWeight: 600, letterSpacing: 1, opacity: 0.6 }}>SESSIONS</span>
         </div>
       )}
 
@@ -271,6 +271,7 @@ export function LeftPanel() {
                 borderRadius: 8,
                 cursor: 'pointer',
                 background: isActive ? 'var(--cb-bg-elevated)' : 'transparent',
+                borderLeft: isActive ? '2px solid var(--cb-accent)' : '2px solid transparent',
               }}
             >
               <MessageSquare
@@ -369,7 +370,7 @@ export function LeftPanel() {
       {activeProjectId && (
         <div style={{ borderTop: '1px solid var(--cb-border)', padding: '8px 8px 4px 8px' }}>
           <div className="flex items-center justify-between" style={{ padding: '4px 8px' }}>
-            <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontWeight: 600, letterSpacing: 1 }}>REFERENCES</span>
+            <span style={{ color: 'var(--cb-accent)', fontSize: 10, fontWeight: 600, letterSpacing: 1, opacity: 0.6 }}>REFERENCES</span>
             <Plus
               size={12}
               style={{ color: 'var(--cb-text-dim)', cursor: 'pointer' }}

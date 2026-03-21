@@ -73,7 +73,7 @@ export function TopHeader() {
       {/* Brand */}
       <span
         className="font-semibold text-sm cursor-default ml-4"
-        style={{ color: 'var(--cb-text-primary)' }}
+        style={{ color: 'var(--cb-accent)' }}
         onMouseDown={async (e) => {
           if (e.detail === 2) return;
           await win.startDragging();
