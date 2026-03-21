@@ -49,6 +49,7 @@ export function TopHeader() {
         background: 'var(--cb-bg-primary)',
         borderBottom: '1px solid var(--cb-border)',
         padding: '0 20px',
+        cursor: 'default',
       }}
     >
       {/* Traffic lights */}
@@ -72,8 +73,8 @@ export function TopHeader() {
 
       {/* Brand */}
       <span
-        className="font-semibold text-sm cursor-default"
-        style={{ color: 'var(--cb-text-primary)', marginLeft: 24 }}
+        className="font-semibold text-sm"
+        style={{ color: 'var(--cb-text-primary)', marginLeft: 24, lineHeight: '44px', cursor: 'default' }}
         onMouseDown={async (e) => {
           if (e.detail === 2) return;
           await win.startDragging();
@@ -85,6 +86,7 @@ export function TopHeader() {
       {/* Draggable spacer */}
       <div
         className="flex-1 h-full"
+        style={{ cursor: 'default' }}
         onMouseDown={async () => { await win.startDragging(); }}
       />
 
