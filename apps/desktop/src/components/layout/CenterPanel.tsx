@@ -1150,8 +1150,8 @@ export function CenterPanel() {
               <Image size={16} />
             </button>
           </div>
-          <div className="flex items-center" style={{ gap: 10 }}>
-            <div style={{ position: 'relative' }}>
+          <div className="flex items-center" style={{ gap: 10, minWidth: 0, flex: 1, justifyContent: 'flex-end' }}>
+            <div style={{ position: 'relative', minWidth: 0, maxWidth: '100%' }}>
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
@@ -1160,6 +1160,7 @@ export function CenterPanel() {
                   background: 'var(--cb-bg-primary)', borderRadius: 10, padding: '3px 26px 3px 26px',
                   border: '1px solid var(--cb-border)', color: 'var(--cb-text-muted)', fontSize: 11,
                   fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                  maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
               >
                 {defaultModels.map((m) => (
