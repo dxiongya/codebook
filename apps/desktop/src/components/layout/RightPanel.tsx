@@ -753,13 +753,46 @@ export function RightPanel() {
       </div>
 
       {activeTab === 'git' ? (
-        gitError ? (
+        gitRepos.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center" style={{ gap: 8 }}>
+            <GitBranch size={20} style={{ color: 'var(--cb-text-dim)' }} />
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>No git repositories found</span>
+            <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>Add a project with a .git directory</span>
+          </div>
+        ) : gitError ? (
           <div className="flex-1 flex items-center justify-center">
             <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>// {gitError}</span>
           </div>
         ) : (
           <>
-            {/* branch selector row (design: h32) */}
+            {/* Repo selector (always visible) */}
+            {gitRepos.length > 1 && (
+              <div className="flex shrink-0 overflow-x-auto" style={{ padding: '6px 10px', gap: 4, borderBottom: '1px solid var(--cb-border)' }}>
+                {gitRepos.map((r) => {
+                  const isActive = r.path === activeRepoPath;
+                  return (
+                    <button
+                      key={r.path}
+                      onClick={() => setActiveRepoPath(r.path)}
+                      style={{
+                        padding: '4px 10px', fontSize: 11, whiteSpace: 'nowrap',
+                        fontWeight: isActive ? 500 : 400,
+                        color: isActive ? 'var(--cb-text-primary)' : 'var(--cb-text-muted)',
+                        background: isActive ? 'var(--cb-bg-active)' : 'transparent',
+                        border: isActive ? '1px solid var(--cb-border)' : '1px solid transparent',
+                        borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit',
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}
+                    >
+                      <Folder size={11} style={{ color: isActive ? 'var(--cb-accent)' : 'var(--cb-text-dim)' }} />
+                      {r.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* branch selector row */}
             <div className="flex items-center shrink-0" style={{ padding: '6px 14px', gap: 6 }}>
               <GitBranch size={13} style={{ color: 'var(--cb-accent)', flexShrink: 0 }} />
               <div style={{ position: 'relative' }}>
@@ -791,7 +824,7 @@ export function RightPanel() {
               </div>
             </div>
 
-            {/* action icons row (design: h28) */}
+            {/* action icons row */}
             <div className="flex items-center justify-between shrink-0" style={{ padding: '2px 14px 6px' }}>
               <div className="flex items-center" style={{ gap: 10 }}>
                 <RefreshCw size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={fetchGitData} />
@@ -799,20 +832,6 @@ export function RightPanel() {
                 <ArrowUp size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} onClick={handlePush} />
                 <History size={13} style={{ color: 'var(--cb-text-muted)', cursor: 'pointer' }} />
               </div>
-              {gitRepos.length > 1 && (
-                <select
-                  value={activeRepoPath}
-                  onChange={(e) => setActiveRepoPath(e.target.value)}
-                  style={{
-                    appearance: 'none', background: 'transparent', border: 'none',
-                    color: 'var(--cb-accent)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
-                  }}
-                >
-                  {gitRepos.map((r) => (
-                    <option key={r.path} value={r.path}>{r.name}</option>
-                  ))}
-                </select>
-              )}
             </div>
 
             {/* git sub-tabs (design: h37, font 11) */}
