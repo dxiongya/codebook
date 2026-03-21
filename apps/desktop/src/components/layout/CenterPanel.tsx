@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAppStore, type DisplayMessage } from '../../stores/useAppStore';
 import type { DisplayBlock, DisplayThinkingBlock, DisplayToolBlock, DisplayTextBlock, Checkpoint } from '../../types';
 import * as api from '../../lib/api';
@@ -510,51 +510,35 @@ export function CenterPanel() {
   ];
   const [extraModels, setExtraModels] = useState<string[]>([]);
 
-  // Slash command autocomplete
-  const SKILLS = [
-    // Claude CLI built-in
-    { cmd: '/help', desc: 'Show available commands' },
-    { cmd: '/compact', desc: 'Compact conversation history' },
-    { cmd: '/clear', desc: 'Clear conversation' },
-    { cmd: '/config', desc: 'View/modify configuration' },
-    { cmd: '/cost', desc: 'Show token usage and cost' },
-    { cmd: '/doctor', desc: 'Check Claude CLI health' },
-    { cmd: '/init', desc: 'Initialize project with CLAUDE.md' },
-    { cmd: '/login', desc: 'Switch account or auth' },
-    { cmd: '/logout', desc: 'Sign out' },
-    { cmd: '/memory', desc: 'Edit CLAUDE.md memory' },
-    { cmd: '/model', desc: 'Switch AI model' },
-    { cmd: '/permissions', desc: 'View/update permissions' },
-    { cmd: '/pr_comments', desc: 'View PR review comments' },
-    { cmd: '/review', desc: 'Review code changes' },
-    { cmd: '/status', desc: 'Show session status' },
-    { cmd: '/terminal-setup', desc: 'Install shell integration' },
-    { cmd: '/vim', desc: 'Toggle vim mode' },
-    // Impeccable skills
-    { cmd: '/impeccable:polish', desc: 'Final quality pass — alignment, spacing, consistency' },
-    { cmd: '/impeccable:harden', desc: 'Error handling, edge cases, resilience' },
-    { cmd: '/impeccable:audit', desc: 'Comprehensive quality audit with report' },
-    { cmd: '/impeccable:optimize', desc: 'Performance — rendering, bundle, images' },
-    { cmd: '/impeccable:critique', desc: 'UX design evaluation with feedback' },
-    { cmd: '/impeccable:colorize', desc: 'Add strategic color to monochromatic UI' },
-    { cmd: '/impeccable:bolder', desc: 'Amplify visual impact of safe designs' },
-    { cmd: '/impeccable:quieter', desc: 'Tone down overly bold designs' },
-    { cmd: '/impeccable:animate', desc: 'Add purposeful micro-interactions' },
-    { cmd: '/impeccable:clarify', desc: 'Improve UX copy and error messages' },
-    { cmd: '/impeccable:distill', desc: 'Strip design to its essence' },
-    { cmd: '/impeccable:delight', desc: 'Add moments of joy and personality' },
-    { cmd: '/impeccable:adapt', desc: 'Adapt design across screen sizes' },
-    { cmd: '/impeccable:normalize', desc: 'Align with design system' },
-    { cmd: '/impeccable:extract', desc: 'Extract reusable components and tokens' },
-    { cmd: '/impeccable:onboard', desc: 'Improve onboarding and empty states' },
-    { cmd: '/impeccable:frontend-design', desc: 'Create production-grade frontend UI' },
-    { cmd: '/impeccable:teach-impeccable', desc: 'Setup design context for project' },
-    // Other installed skills
-    { cmd: '/commit', desc: 'Commit with conventional message' },
-    { cmd: '/simplify', desc: 'Review changed code for reuse and quality' },
-    { cmd: '/find-skills', desc: 'Discover and install new skills' },
-    { cmd: '/claude-api', desc: 'Build apps with Anthropic SDK' },
-  ];
+  // Slash command autocomplete — dynamic from Claude CLI system_init
+  const claudeInitData = useAppStore((s) => s.claudeInitData);
+  const SKILLS = useMemo(() => {
+    const cmds: { cmd: string; desc: string }[] = [];
+    // Slash commands from CLI (built-in like /compact, /cost, /review etc.)
+    if (claudeInitData?.slash_commands) {
+      for (const sc of claudeInitData.slash_commands) {
+        cmds.push({ cmd: `/${sc}`, desc: '' });
+      }
+    }
+    // Skills (user-installed like /impeccable:polish, /simplify etc.)
+    if (claudeInitData?.skills) {
+      for (const sk of claudeInitData.skills) {
+        if (!cmds.some((c) => c.cmd === `/${sk}`)) {
+          cmds.push({ cmd: `/${sk}`, desc: '' });
+        }
+      }
+    }
+    // Fallback if no data yet
+    if (cmds.length === 0) {
+      return [
+        { cmd: '/compact', desc: 'Compact conversation' },
+        { cmd: '/review', desc: 'Review code changes' },
+        { cmd: '/cost', desc: 'Show token usage' },
+        { cmd: '/help', desc: 'Show help' },
+      ];
+    }
+    return cmds;
+  }, [claudeInitData]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const filteredSkills = slashQuery !== null
