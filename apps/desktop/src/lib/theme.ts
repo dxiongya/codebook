@@ -11,8 +11,8 @@ export const THEMES: ThemeDefinition[] = [
   {
     id: 'codebook-warm',
     label: 'Codebook Warm',
-    preview: '#1C1917',
-    previewBorder: '#2A2520',
+    preview: '#151413',
+    previewBorder: '#393836',
   },
   {
     id: 'cursor-ide',

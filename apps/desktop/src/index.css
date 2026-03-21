@@ -4,30 +4,30 @@
 /* ─── Theme System ─────────────────────────────────────────────────────────── */
 
 :root {
-  /* Default: Codebook Warm — tuned for readability + warmth */
-  --cb-bg-primary: #1E1B18;
-  --cb-bg-sidebar: #221F1C;        /* warmer tint — distinct from editor */
-  --cb-bg-elevated: #2C2925;       /* cards, inputs — more contrast */
-  --cb-bg-active: #3A3632;         /* hover/selected — clear feedback */
-  --cb-bg-code: #191614;
-  --cb-bg-rail: #171412;
-  --cb-border: #3D3833;            /* warmer border — area separation */
-  --cb-border-active: #E5A54B;
-  --cb-text-primary: #F2EEEA;      /* near-white warm */
-  --cb-text-secondary: #D4CFCA;
-  --cb-text-muted: #ACA6A0;
-  --cb-text-dim: #7D7770;
-  --cb-accent: #E5A54B;
+  /* Default: Codebook Warm — inspired by OpenChamber's OKLCH warm palette */
+  --cb-bg-primary: #151413;        /* deep warm black — oklch(0.16 0.01 30) */
+  --cb-bg-sidebar: #1A1918;        /* sidebar — slightly lighter, distinct */
+  --cb-bg-elevated: #232221;       /* cards, inputs, tabs */
+  --cb-bg-active: #2E2D2B;        /* hover, selected items */
+  --cb-bg-code: #121110;          /* code blocks — deepest content */
+  --cb-bg-rail: #0F0E0D;          /* activity bar rail */
+  --cb-border: #393836;            /* warm border — oklch(0.31 0.01 35) */
+  --cb-border-active: #EDB449;    /* golden sand accent */
+  --cb-text-primary: #CDCCC3;      /* warm off-white — oklch(0.85 0.02 90) */
+  --cb-text-secondary: #ABA9A0;    /* warm secondary */
+  --cb-text-muted: #807E76;        /* warm muted — still readable */
+  --cb-text-dim: #5C5A53;          /* warm dim — hints, line numbers */
+  --cb-accent: #EDB449;            /* golden sand — oklch(0.77 0.17 85) */
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
   --cb-accent-blue: #60A5FA;
   --cb-accent-purple: #A78BFA;
   --cb-accent-cyan: #06B6D4;
   /* Semantic surfaces */
-  --cb-bg-success: #1A2E1A;        /* green-tinted bg for success states */
-  --cb-bg-error: #2E1A1A;          /* red-tinted bg for error states */
-  --cb-bg-info: #1A1E2E;           /* blue-tinted bg for info */
-  --cb-bg-warning: #2E261A;        /* amber-tinted bg for warnings */
+  --cb-bg-success: #141E14;
+  --cb-bg-error: #1E1414;
+  --cb-bg-info: #14161E;
+  --cb-bg-warning: #1E1A14;
 }
 
 [data-theme="cursor-ide"] {
@@ -138,7 +138,7 @@ body {
 }
 
 ::selection {
-  background-color: #10B98133;
+  background-color: #EDB44933;
   color: var(--cb-text-primary);
 }
 
