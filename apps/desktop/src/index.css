@@ -25,6 +25,27 @@
   --cb-accent-cyan: #06B6D4;
 }
 
+[data-theme="cursor-ide"] {
+  --cb-bg-primary: #1E1E1E;        /* editor — classic VS Code dark */
+  --cb-bg-sidebar: #181818;        /* sidebar — slightly deeper */
+  --cb-bg-elevated: #252526;       /* tabs, inputs, cards */
+  --cb-bg-active: #2D2D2D;        /* selection, hover */
+  --cb-bg-code: #1A1A1A;          /* code blocks */
+  --cb-bg-rail: #141414;          /* activity bar — deepest */
+  --cb-border: #3C3C3C;           /* clear borders */
+  --cb-border-active: #E5A54B;
+  --cb-text-primary: #D4D4D4;     /* classic IDE text */
+  --cb-text-secondary: #B0B0B0;   /* secondary */
+  --cb-text-muted: #808080;       /* muted but readable */
+  --cb-text-dim: #5A5A5A;         /* line numbers, hints */
+  --cb-accent: #E5A54B;
+  --cb-accent-green: #4EC9B0;     /* teal green (Cursor style) */
+  --cb-accent-red: #F14C4C;       /* softer red */
+  --cb-accent-blue: #569CD6;      /* keyword blue */
+  --cb-accent-purple: #C586C0;    /* statement purple */
+  --cb-accent-cyan: #4FC1FF;      /* type cyan */
+}
+
 [data-theme="anysphere-dark"] {
   --cb-bg-primary: #1A1B1A;
   --cb-bg-sidebar: #1D1E1D;

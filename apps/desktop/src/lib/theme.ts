@@ -15,6 +15,12 @@ export const THEMES: ThemeDefinition[] = [
     previewBorder: '#2A2520',
   },
   {
+    id: 'cursor-ide',
+    label: 'Cursor IDE',
+    preview: '#1E1E1E',
+    previewBorder: '#3C3C3C',
+  },
+  {
     id: 'anysphere-dark',
     label: 'Anysphere Dark',
     preview: '#171817',
