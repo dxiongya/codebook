@@ -4,19 +4,19 @@
 /* ─── Theme System ─────────────────────────────────────────────────────────── */
 
 :root {
-  /* Default: Codebook Warm */
-  --cb-bg-primary: #1C1917;
-  --cb-bg-sidebar: #1C1917;
-  --cb-bg-elevated: #262220;
-  --cb-bg-active: #33302A;
-  --cb-bg-code: #171412;
-  --cb-bg-rail: #171412;
-  --cb-border: #2A2520;
+  /* Default: Codebook Warm — tuned for readability + warmth */
+  --cb-bg-primary: #1E1B18;        /* slightly lifted from #1C1917 */
+  --cb-bg-sidebar: #211E1B;        /* distinct from primary — warmer, slightly lighter */
+  --cb-bg-elevated: #2A2724;       /* lifted from #262220 — cards, inputs */
+  --cb-bg-active: #373330;         /* lifted from #33302A — hover, selected */
+  --cb-bg-code: #191614;           /* lifted from #171412 — code blocks */
+  --cb-bg-rail: #171412;           /* deepest layer stays dark */
+  --cb-border: #3A3530;            /* lifted from #2A2520 — much more visible */
   --cb-border-active: #E5A54B;
-  --cb-text-primary: #E8E4E0;
-  --cb-text-secondary: #C8C4BE;
-  --cb-text-muted: #9C9690;
-  --cb-text-dim: #6B6560;
+  --cb-text-primary: #F0ECE8;      /* brighter from #E8E4E0 — more contrast */
+  --cb-text-secondary: #D0CBC6;    /* brighter from #C8C4BE */
+  --cb-text-muted: #A8A29C;        /* brighter from #9C9690 — still readable */
+  --cb-text-dim: #78726C;          /* brighter from #6B6560 — less invisible */
   --cb-accent: #E5A54B;
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
@@ -26,18 +26,18 @@
 }
 
 [data-theme="anysphere-dark"] {
-  --cb-bg-primary: #171817;
-  --cb-bg-sidebar: #171817;
-  --cb-bg-elevated: #1F201F;
-  --cb-bg-active: #282929;
-  --cb-bg-code: #111211;
+  --cb-bg-primary: #1A1B1A;
+  --cb-bg-sidebar: #1D1E1D;
+  --cb-bg-elevated: #252625;
+  --cb-bg-active: #303130;
+  --cb-bg-code: #141514;
   --cb-bg-rail: #111211;
-  --cb-border: #383838;
+  --cb-border: #404040;
   --cb-border-active: #E5A54B;
-  --cb-text-primary: #D6D6DD;
-  --cb-text-secondary: #A0A0A8;
-  --cb-text-muted: #7A797A;
-  --cb-text-dim: #4E4E50;
+  --cb-text-primary: #E2E2E8;
+  --cb-text-secondary: #B0B0B8;
+  --cb-text-muted: #888890;
+  --cb-text-dim: #5C5C62;
   --cb-accent: #E5A54B;
   --cb-accent-green: #4ADE80;
   --cb-accent-red: #EF4444;
