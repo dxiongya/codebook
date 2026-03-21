@@ -11,8 +11,8 @@
   --cb-bg-active: #302F2D;        /* hover, selected */
   --cb-bg-code: #131211;          /* code blocks */
   --cb-bg-rail: #100F0E;          /* deepest */
-  --cb-border: #332F2C;            /* panel separators — slightly brighter */
-  --cb-border-subtle: #252320;     /* internal dividers — very soft */
+  --cb-border: #3D3A36;            /* panel separators — clearly visible */
+  --cb-border-subtle: #222019;     /* internal dividers — barely visible */
   --cb-border-active: #EDB449;
   --cb-text-primary: #DBD8D0;      /* warm white — between #CCC and #F0F */
   --cb-text-secondary: #B5B2A9;    /* warm secondary — readable */
@@ -38,8 +38,8 @@
   --cb-bg-active: #333333;        /* stronger selection */
   --cb-bg-code: #1A1A1A;
   --cb-bg-rail: #141414;
-  --cb-border: #3A3A3A;           /* panel separators */
-  --cb-border-subtle: #2C2C2C;   /* internal dividers */
+  --cb-border: #444444;           /* panel separators — clearly visible */
+  --cb-border-subtle: #282828;   /* internal dividers */
   --cb-border-active: #E5A54B;
   --cb-text-primary: #DCDCDC;
   --cb-text-secondary: #B8B8B8;
@@ -64,8 +64,8 @@
   --cb-bg-active: #323332;
   --cb-bg-code: #141514;
   --cb-bg-rail: #111211;
-  --cb-border: #3A3A3A;
-  --cb-border-subtle: #2A2B2A;
+  --cb-border: #444444;
+  --cb-border-subtle: #282928;
   --cb-border-active: #E5A54B;
   --cb-text-primary: #E4E4EA;
   --cb-text-secondary: #B4B4BC;
