@@ -13,6 +13,21 @@ import { Sparkles, Brain, Terminal, Pencil, Eye, Search, ChevronDown, History, C
 
 const ICON_SIZE = 13;
 
+/** Format model ID for display. Handles any model string gracefully. */
+function formatModelName(m: string | null | undefined): string {
+  if (!m) return 'Claude';
+  // Clean up common patterns: "claude-opus-4-6[1m]" → "Opus 4.6"
+  const cleaned = m
+    .replace(/^claude-?/i, '')
+    .replace(/\[.*\]$/, '')
+    .replace(/-(\d+)-(\d+)/, ' $1.$2')
+    .replace(/-/g, ' ')
+    .trim();
+  if (!cleaned) return m;
+  // Capitalize first letter of each word
+  return 'Claude ' + cleaned.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 function StreamTimer() {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -451,7 +466,7 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
       {/* assistant header */}
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
         <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
-        <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {msg.model === 'opus' ? 'Opus 4.6' : msg.model === 'sonnet' ? 'Sonnet 4.6' : msg.model === 'haiku' ? 'Haiku 4.5' : msg.model || 'Opus 4.6'}</span>
+        <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>{formatModelName(msg.model)}</span>
         <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
       </div>
 
@@ -503,12 +518,8 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
 export function CenterPanel() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const defaultModels = [
-    { id: 'opus', label: 'Opus 4.6 with 1M context · Most capable for complex work' },
-    { id: 'sonnet', label: 'Sonnet 4.6 · Best for everyday tasks' },
-    { id: 'haiku', label: 'Haiku 4.5 · Fastest for quick answers' },
-  ];
-  const [extraModels, setExtraModels] = useState<string[]>([]);
+
+  const [knownModels, setKnownModels] = useState<string[]>([]);
 
   // Slash command autocomplete — dynamic from Claude CLI system_init
   const claudeInitData = useAppStore((s) => s.claudeInitData);
@@ -549,8 +560,7 @@ export function CenterPanel() {
     api.getSetting('known_models').then((val) => {
       if (val) {
         const models: string[] = JSON.parse(val);
-        const defaultIds = defaultModels.map((m) => m.id);
-        setExtraModels(models.filter((m) => !defaultIds.includes(m)));
+        setKnownModels(models);
       }
     }).catch(() => {});
   }, []);
@@ -577,6 +587,10 @@ export function CenterPanel() {
     setModel,
   } = useAppStore();
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const allModels = useMemo(() => {
+    const set = new Set([model, ...knownModels]);
+    return Array.from(set).filter(Boolean);
+  }, [model, knownModels]);
 
   // Auto-scroll to bottom when session changes
   useEffect(() => {
@@ -865,7 +879,7 @@ export function CenterPanel() {
             {activeSession?.name ?? 'No session'}
           </span>
           <span style={{ background: 'var(--cb-bg-elevated)', color: 'var(--cb-text-muted)', fontSize: 10, padding: '2px 8px', borderRadius: 10 }}>
-            {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}
+            {formatModelName(model).replace('Claude ', '')}
           </span>
         </div>
         <div className="flex items-center" style={{ gap: 10 }}>
@@ -946,7 +960,7 @@ export function CenterPanel() {
               <div>
                 <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
                   <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
-                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>{formatModelName(model)}</span>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cb-accent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
                   <StreamTimer />
                 </div>
@@ -977,7 +991,7 @@ export function CenterPanel() {
           {isStreaming && streamingBlocks.length === 0 && (
             <div className="flex items-center" style={{ gap: 8, padding: '12px 0' }}>
               <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
-              <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
+              <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>{formatModelName(model)}</span>
               <span
                 style={{
                   width: 6,
@@ -1282,16 +1296,9 @@ export function CenterPanel() {
                   maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
               >
-                {defaultModels.map((m) => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
+                {allModels.map((m) => (
+                  <option key={m} value={m}>{formatModelName(m)}</option>
                 ))}
-                {extraModels.length > 0 && (
-                  <optgroup label="previously used">
-                    {extraModels.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </optgroup>
-                )}
               </select>
               <Sparkles size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-accent)', pointerEvents: 'none' }} />
               <ChevronDown size={10} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-text-dim)', pointerEvents: 'none' }} />
