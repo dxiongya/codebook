@@ -820,13 +820,42 @@ export function CenterPanel() {
           {!hasMoreMessages && messages.length > 0 && (
             <div style={{ textAlign: 'center', padding: '8px 0', color: 'var(--cb-text-dim)', fontSize: 11 }}>session started</div>
           )}
-          {messages.map((msg) => (
-            <MessageView
-              key={msg.id}
-              msg={msg}
-              checkpoint={checkpoints.find((cp) => cp.message_id === msg.id)}
-            />
-          ))}
+          {(() => {
+            // Merge consecutive assistant messages (CLI import creates cumulative snapshots)
+            const merged: typeof messages = [];
+            for (const msg of messages) {
+              const prev = merged[merged.length - 1];
+              if (prev && prev.role === 'assistant' && msg.role === 'assistant') {
+                // Collect unique blocks — later snapshots may add new blocks
+                const blockKey = (b: DisplayBlock) => {
+                  if (b.type === 'text') return `text:${b.content}`;
+                  if (b.type === 'thinking') return `thinking:${b.content.slice(0, 100)}`;
+                  if (b.type === 'tool_use') return `tool:${b.tool}:${b.path ?? b.command ?? ''}`;
+                  return JSON.stringify(b);
+                };
+                const existingKeys = new Set(prev.blocks.map(blockKey));
+                const newBlocks = msg.blocks.filter((b) => !existingKeys.has(blockKey(b)));
+                if (newBlocks.length > 0) {
+                  merged[merged.length - 1] = {
+                    ...prev,
+                    blocks: [...prev.blocks, ...newBlocks],
+                    cost: (prev.cost ?? 0) + (msg.cost ?? 0),
+                    duration_ms: (prev.duration_ms ?? 0) + (msg.duration_ms ?? 0),
+                  };
+                }
+                // Skip — already merged into prev
+              } else {
+                merged.push(msg);
+              }
+            }
+            return merged.map((msg) => (
+              <MessageView
+                key={msg.id}
+                msg={msg}
+                checkpoint={checkpoints.find((cp) => cp.message_id === msg.id)}
+              />
+            ));
+          })()}
 
           {/* streaming blocks — segmented Activity→Reply like saved messages */}
           {isStreaming && streamingBlocks.length > 0 && (() => {
