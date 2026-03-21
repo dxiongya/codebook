@@ -1051,32 +1051,46 @@ export function CenterPanel() {
             border: '1px solid var(--cb-border)', borderRadius: 8,
             overflow: 'hidden', zIndex: 20,
             boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
+            maxHeight: 260,
+            display: 'flex', flexDirection: 'column',
           }}>
-            {filteredSkills.map((skill, i) => (
-              <div
-                key={skill.cmd}
-                onClick={() => {
-                  if (editorRef.current) {
-                    editorRef.current.textContent = skill.cmd;
-                    const range = document.createRange();
-                    range.selectNodeContents(editorRef.current);
-                    range.collapse(false);
-                    window.getSelection()?.removeAllRanges();
-                    window.getSelection()?.addRange(range);
-                  }
-                  setSlashQuery(null);
-                }}
-                style={{
-                  padding: '7px 12px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: i === slashIndex ? 'var(--cb-bg-active)' : 'transparent',
-                }}
-              >
-                <span style={{ color: 'var(--cb-accent)', fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: 10 }}>/</span>
-                <span style={{ color: i === slashIndex ? 'var(--cb-text-primary)' : 'var(--cb-text-secondary)', fontSize: 12, fontWeight: 600 }}>{skill.cmd.slice(1)}</span>
-                <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, flex: 1 }}>{skill.desc}</span>
-              </div>
-            ))}
+            <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--cb-border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>Commands</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 9 }}>{filteredSkills.length} results · ↑↓ navigate · ⏎ select</span>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filteredSkills.map((skill, i) => {
+                const name = skill.cmd.slice(1);
+                const isPlugin = name.includes(':');
+                const prefix = isPlugin ? name.split(':')[0] : '';
+                const label = isPlugin ? name.split(':')[1] : name;
+                return (
+                  <div
+                    key={skill.cmd}
+                    onClick={() => {
+                      if (editorRef.current) {
+                        editorRef.current.textContent = skill.cmd;
+                        const range = document.createRange();
+                        range.selectNodeContents(editorRef.current);
+                        range.collapse(false);
+                        window.getSelection()?.removeAllRanges();
+                        window.getSelection()?.addRange(range);
+                      }
+                      setSlashQuery(null);
+                    }}
+                    style={{
+                      padding: '4px 12px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: i === slashIndex ? 'var(--cb-bg-active)' : 'transparent',
+                    }}
+                  >
+                    <span style={{ color: 'var(--cb-accent)', fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>/</span>
+                    {isPlugin && <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>{prefix}:</span>}
+                    <span style={{ color: i === slashIndex ? 'var(--cb-text-primary)' : 'var(--cb-text-secondary)', fontSize: 11, fontWeight: 500 }}>{label}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
