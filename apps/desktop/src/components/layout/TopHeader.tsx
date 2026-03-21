@@ -135,7 +135,7 @@ export function TopHeader() {
           className="flex items-center shrink-0 rounded-full"
           style={{ background: 'var(--cb-bg-elevated)', border: '1px solid var(--cb-border)', padding: '4px 12px', gap: 6 }}
         >
-          <div className="shrink-0" style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ADE80' }} />
+          <div className="shrink-0" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cb-accent-green)' }} />
           <Sparkles size={13} style={{ color: 'var(--cb-text-secondary)' }} />
           <span className="whitespace-nowrap" style={{ color: 'var(--cb-text-secondary)', fontSize: 11, fontWeight: 500 }}>
             Claude CLI
@@ -153,12 +153,12 @@ export function TopHeader() {
           >
             <Smartphone
               size={15}
-              style={{ color: clientCount > 0 ? '#E5A54B' : remoteOpen ? '#E5A54B' : 'var(--cb-text-dim)' }}
+              style={{ color: clientCount > 0 ? 'var(--cb-accent)' : remoteOpen ? 'var(--cb-accent)' : 'var(--cb-text-dim)' }}
             />
             {clientCount > 0 && (
               <span style={{
                 position: 'absolute', top: -6, right: -8,
-                background: '#E5A54B', color: 'var(--cb-bg-primary)',
+                background: 'var(--cb-accent)', color: 'var(--cb-bg-primary)',
                 fontSize: 9, fontWeight: 700, lineHeight: '14px',
                 width: 14, height: 14, borderRadius: 7,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -178,7 +178,7 @@ export function TopHeader() {
               display: 'flex', alignItems: 'center', gap: 8,
               animation: 'fadeIn 0.2s ease-out',
             }}>
-              <div style={{ width: 6, height: 6, borderRadius: 3, background: '#4ADE80' }} />
+              <div style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--cb-accent-green)' }} />
               <span style={{ fontSize: 12, color: 'var(--cb-text-primary)', fontWeight: 500 }}>
                 Mobile device connected
               </span>

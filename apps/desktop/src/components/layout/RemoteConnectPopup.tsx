@@ -118,7 +118,7 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
         style={{ padding: '12px 16px', borderBottom: '1px solid var(--cb-border)' }}
       >
         <div className="flex items-center" style={{ gap: 8 }}>
-          <Smartphone size={14} style={{ color: '#E5A54B' }} />
+          <Smartphone size={14} style={{ color: 'var(--cb-accent)' }} />
           <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Remote Connect</span>
         </div>
         <button
@@ -179,7 +179,7 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
               onClick={() => copyToClipboard(displayAddress, 'ip')}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 2, color: copied === 'ip' ? '#4ADE80' : 'var(--cb-text-dim)',
+                padding: 2, color: copied === 'ip' ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
                 display: 'flex', flexShrink: 0,
               }}
             >
@@ -210,10 +210,10 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
                 <div key={i} style={{
                   width: 36, height: 44,
                   background: 'var(--cb-bg-elevated)',
-                  border: `1px solid ${copied === 'pin' ? '#4ADE80' : '#3A3530'}`,
+                  border: `1px solid ${copied === 'pin' ? 'var(--cb-accent-green)' : 'var(--cb-border)'}`,
                   borderRadius: 8,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, fontWeight: 700, color: copied === 'pin' ? '#4ADE80' : '#E5A54B',
+                  fontSize: 20, fontWeight: 700, color: copied === 'pin' ? 'var(--cb-accent-green)' : 'var(--cb-accent)',
                   fontFamily: 'JetBrains Mono, monospace',
                   transition: 'border-color 0.2s, color 0.2s',
                 }}>
@@ -222,7 +222,7 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             {/* Copy hint */}
-            <div style={{ textAlign: 'center', fontSize: 10, color: copied === 'pin' ? '#4ADE80' : 'var(--cb-text-dim)' }}>
+            <div style={{ textAlign: 'center', fontSize: 10, color: copied === 'pin' ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)' }}>
               {copied === 'pin' ? '✓ Copied!' : 'Click to copy'}
             </div>
 
@@ -231,7 +231,7 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
               <div style={{
                 height: '100%',
                 width: `${pinProgress * 100}%`,
-                background: pinProgress > 0.4 ? '#E5A54B' : pinProgress > 0.15 ? '#F59E0B' : '#EF4444',
+                background: pinProgress > 0.4 ? 'var(--cb-accent)' : pinProgress > 0.15 ? 'var(--cb-accent)' : 'var(--cb-accent-red)',
                 borderRadius: 2,
                 transition: 'width 1s linear, background 0.3s',
               }} />
@@ -262,7 +262,7 @@ export function RemoteConnectPopup({ onClose }: { onClose: () => void }) {
             onClick={handleGeneratePin}
             disabled={loading}
             style={{
-              background: '#E5A54B', border: 'none', borderRadius: 8,
+              background: 'var(--cb-accent)', border: 'none', borderRadius: 8,
               padding: '10px 0', fontSize: 12, fontWeight: 600,
               color: 'var(--cb-bg-primary)', cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', opacity: loading ? 0.7 : 1,

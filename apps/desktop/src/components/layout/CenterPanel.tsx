@@ -146,8 +146,8 @@ function ToolBlockView({ block }: { block: DisplayToolBlock }) {
           </span>
           {diffInfo && (
             <span style={{ fontSize: 11, flexShrink: 0 }}>
-              <span style={{ color: '#4ADE80' }}>{diffInfo.split(' ')[0]}</span>
-              {diffInfo.includes('-') && <span style={{ color: '#EF4444' }}> {diffInfo.split(' ')[1]}</span>}
+              <span style={{ color: 'var(--cb-accent-green)' }}>{diffInfo.split(' ')[0]}</span>
+              {diffInfo.includes('-') && <span style={{ color: 'var(--cb-accent-red)' }}> {diffInfo.split(' ')[1]}</span>}
             </span>
           )}
         </div>
@@ -155,12 +155,12 @@ function ToolBlockView({ block }: { block: DisplayToolBlock }) {
           <div style={{
             marginTop: 6,
             padding: '10px 12px',
-            background: '#0a1a0f',
-            border: '1px solid #1a2a1a',
+            background: 'var(--cb-bg-code)',
+            border: '1px solid var(--cb-border)',
             borderRadius: 6,
             fontSize: 11,
             fontFamily: "'JetBrains Mono', monospace",
-            color: '#86efac',
+            color: 'var(--cb-accent-green)',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
             maxHeight: 300,
@@ -199,7 +199,7 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
               return (
                 <code style={{
                   background: 'var(--cb-bg-elevated)',
-                  color: '#60A5FA',
+                  color: 'var(--cb-accent-blue)',
                   padding: '2px 6px',
                   borderRadius: 4,
                   fontSize: 12,
@@ -246,14 +246,14 @@ function TextBlockView({ block }: { block: DisplayTextBlock }) {
           ),
           blockquote: ({ children }) => (
             <blockquote style={{
-              borderLeft: '3px solid #E5A54B',
+              borderLeft: '3px solid var(--cb-accent)',
               paddingLeft: 12,
               margin: '8px 0',
               color: 'var(--cb-text-muted)',
             }}>{children}</blockquote>
           ),
           a: ({ children, href }) => (
-            <a href={href} style={{ color: '#60A5FA', textDecoration: 'none' }}>{children}</a>
+            <a href={href} style={{ color: 'var(--cb-accent-blue)', textDecoration: 'none' }}>{children}</a>
           ),
           table: ({ children }) => (
             <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: 12 }}>{children}</table>
@@ -284,7 +284,7 @@ function BlockRenderer({ block }: { block: DisplayBlock }) {
 }
 
 function ContextProgressBar({ percent }: { percent: number }) {
-  const barColor = percent > 80 ? '#EF4444' : percent > 50 ? '#E5A54B' : '#4ADE80';
+  const barColor = percent > 80 ? 'var(--cb-accent-red)' : percent > 50 ? 'var(--cb-accent)' : 'var(--cb-accent-green)';
   return (
     <div style={{ width: 60, height: 4, background: 'var(--cb-bg-active)', borderRadius: 2, overflow: 'hidden' }}>
       <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: barColor, borderRadius: 2, transition: 'width 0.3s' }} />
@@ -352,7 +352,7 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
                 <span
                   onClick={() => confirmRollback(checkpoint)}
                   style={{
-                    color: 'var(--cb-bg-primary)', background: '#E5A54B', fontSize: 11, fontWeight: 500,
+                    color: 'var(--cb-bg-primary)', background: 'var(--cb-accent)', fontSize: 11, fontWeight: 500,
                     padding: '2px 10px', cursor: 'pointer', borderRadius: 4,
                   }}
                 >
@@ -369,9 +369,9 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
                 </span>
               </div>
             ) : rollbackState === 'loading' ? (
-              <span style={{ color: '#E5A54B', fontSize: 11 }}>rolling back...</span>
+              <span style={{ color: 'var(--cb-accent)', fontSize: 11 }}>rolling back...</span>
             ) : rollbackState === 'done' || rollbackState === 'error' ? (
-              <span style={{ color: rollbackState === 'done' ? '#E5A54B' : '#EF4444', fontSize: 11 }}>{rollbackMsg}</span>
+              <span style={{ color: rollbackState === 'done' ? 'var(--cb-accent)' : 'var(--cb-accent-red)', fontSize: 11 }}>{rollbackMsg}</span>
             ) : (
               <div
                 className="flex items-center"
@@ -447,7 +447,7 @@ function MessageView({ msg, checkpoint }: { msg: DisplayMessage; checkpoint?: Ch
     <div>
       {/* assistant header */}
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-        <Sparkles size={16} style={{ color: '#E5A54B' }} />
+        <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
         <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {msg.model === 'opus' ? 'Opus 4.6' : msg.model === 'sonnet' ? 'Sonnet 4.6' : msg.model === 'haiku' ? 'Haiku 4.5' : msg.model || 'Opus 4.6'}</span>
         <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>{formatTime(msg.created_at)}</span>
       </div>
@@ -801,7 +801,7 @@ export function CenterPanel() {
           {contextUsage.total > 0 && (
             <div className="flex items-center" style={{ gap: 6 }}>
               <ContextProgressBar percent={contextUsage.percent} />
-              <span style={{ color: contextUsage.percent > 80 ? '#EF4444' : 'var(--cb-text-dim)', fontSize: 10 }}>{contextUsage.percent}%</span>
+              <span style={{ color: contextUsage.percent > 80 ? 'var(--cb-accent-red)' : 'var(--cb-text-dim)', fontSize: 10 }}>{contextUsage.percent}%</span>
             </div>
           )}
         </div>
@@ -844,9 +844,9 @@ export function CenterPanel() {
             return (
               <div>
                 <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-                  <Sparkles size={16} style={{ color: '#E5A54B' }} />
+                  <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
                   <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#E5A54B', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cb-accent)', animation: 'pulse 1.5s ease-in-out infinite' }} />
                   <StreamTimer />
                 </div>
                 {segs.map((seg, idx) => (
@@ -875,14 +875,14 @@ export function CenterPanel() {
           {/* streaming indicator when no blocks yet */}
           {isStreaming && streamingBlocks.length === 0 && (
             <div className="flex items-center" style={{ gap: 8, padding: '12px 0' }}>
-              <Sparkles size={16} style={{ color: '#E5A54B' }} />
+              <Sparkles size={16} style={{ color: 'var(--cb-accent)' }} />
               <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>Claude {model === 'opus' ? 'Opus 4.6' : model === 'sonnet' ? 'Sonnet 4.6' : model === 'haiku' ? 'Haiku 4.5' : model}</span>
               <span
                 style={{
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  background: '#E5A54B',
+                  background: 'var(--cb-accent)',
                   animation: 'pulse 1.5s ease-in-out infinite',
                 }}
               />
@@ -1141,19 +1141,19 @@ export function CenterPanel() {
                   </optgroup>
                 )}
               </select>
-              <Sparkles size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#E5A54B', pointerEvents: 'none' }} />
+              <Sparkles size={10} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-accent)', pointerEvents: 'none' }} />
               <ChevronDown size={10} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', color: 'var(--cb-text-dim)', pointerEvents: 'none' }} />
             </div>
             {isStreaming ? (
               <div
                 onClick={stopStreaming}
-                style={{ cursor: 'pointer', padding: '2px 8px', background: '#ef4444', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }}
+                style={{ cursor: 'pointer', padding: '2px 8px', background: 'var(--cb-accent-red)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4 }}
               >
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--cb-text-primary)' }} />
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 10, fontWeight: 500 }}>stop</span>
               </div>
             ) : (
-              <Send size={16} style={{ color: '#E5A54B', cursor: 'pointer', opacity: !activeSessionId ? 0.3 : 1 }} onClick={handleSend} />
+              <Send size={16} style={{ color: 'var(--cb-accent)', cursor: 'pointer', opacity: !activeSessionId ? 0.3 : 1 }} onClick={handleSend} />
             )}
           </div>
         </div>

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 // Deterministic color for project dot
-const PROJECT_COLORS = ['#E5A54B', '#4ADE80', '#60A5FA', '#A78BFA', '#EF4444', '#F59E0B', '#06B6D4'];
+const PROJECT_COLORS = ['var(--cb-accent)', 'var(--cb-accent-green)', 'var(--cb-accent-blue)', 'var(--cb-accent-purple)', 'var(--cb-accent-red)', 'var(--cb-accent)', 'var(--cb-accent-cyan)'];
 function projectColor(index: number) {
   return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
@@ -239,7 +239,7 @@ export function LeftPanel() {
         className="shrink-0 cursor-row-resize group"
         style={{ height: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        <div style={{ width: 40, height: 2, background: '#3A3530', borderRadius: 2, transition: 'background 0.15s' }}
+        <div style={{ width: 40, height: 2, background: 'var(--cb-border)', borderRadius: 2, transition: 'background 0.15s' }}
           className="group-hover:!bg-[#E5A54B]"
         />
       </div>
@@ -275,7 +275,7 @@ export function LeftPanel() {
             >
               <MessageSquare
                 size={14}
-                style={{ color: isActive ? '#E5A54B' : 'var(--cb-text-dim)', flexShrink: 0 }}
+                style={{ color: isActive ? 'var(--cb-accent)' : 'var(--cb-text-dim)', flexShrink: 0 }}
               />
               <div className="flex-1 min-w-0">
                 {renamingId === session.id ? (
@@ -290,8 +290,8 @@ export function LeftPanel() {
                     onBlur={commitRename}
                     onClick={(e) => e.stopPropagation()}
                     style={{
-                      color: '#E5A54B', fontSize: 12, width: '100%',
-                      background: 'var(--cb-bg-primary)', border: '1px solid #E5A54B',
+                      color: 'var(--cb-accent)', fontSize: 12, width: '100%',
+                      background: 'var(--cb-bg-primary)', border: '1px solid var(--cb-accent)',
                       padding: '1px 4px', outline: 'none', borderRadius: 4,
                     }}
                   />
@@ -317,16 +317,16 @@ export function LeftPanel() {
                         fontSize: 9, fontWeight: 500, flexShrink: 0,
                         padding: '1px 5px', borderRadius: 4,
                         background: 'var(--cb-bg-active)',
-                        color: session.cli_type === 'codex' ? '#4ADE80'
-                          : session.cli_type === 'gemini' ? '#60A5FA'
-                          : isActive ? '#E5A54B' : 'var(--cb-text-dim)',
+                        color: session.cli_type === 'codex' ? 'var(--cb-accent-green)'
+                          : session.cli_type === 'gemini' ? 'var(--cb-accent-blue)'
+                          : isActive ? 'var(--cb-accent)' : 'var(--cb-text-dim)',
                       }}>
                         {session.cli_type || 'claude'}
                       </span>
                       {isActive && isStreaming && (
                         <div style={{
                           width: 6, height: 6, borderRadius: 3, flexShrink: 0,
-                          background: '#E5A54B', animation: 'pulse 1.5s ease-in-out infinite',
+                          background: 'var(--cb-accent)', animation: 'pulse 1.5s ease-in-out infinite',
                         }} />
                       )}
                     </div>
@@ -387,7 +387,7 @@ export function LeftPanel() {
               }}
               style={{ padding: '4px 8px', gap: 6, borderRadius: 6, cursor: 'grab' }}
             >
-              <FolderOpen size={12} style={{ color: '#60A5FA', flexShrink: 0 }} />
+              <FolderOpen size={12} style={{ color: 'var(--cb-accent-blue)', flexShrink: 0 }} />
               <span
                 style={{
                   color: 'var(--cb-text-muted)', fontSize: 11, flex: 1,
@@ -400,7 +400,7 @@ export function LeftPanel() {
               <span
                 onClick={() => removeReference(ref.id)}
                 style={{ color: 'var(--cb-text-dim)', fontSize: 12, cursor: 'pointer', padding: '0 2px' }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--cb-accent-red)')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-dim)')}
               >
                 ×
@@ -445,7 +445,7 @@ export function LeftPanel() {
               <div
                 onClick={() => { startRename(contextMenu.id, contextMenu.name); setContextMenu(null); }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent)', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Rename
@@ -453,7 +453,7 @@ export function LeftPanel() {
               <div
                 onClick={() => { deleteSession(contextMenu.id); setContextMenu(null); }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent-red)', e.currentTarget.style.color = '#fff')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Delete
@@ -469,7 +469,7 @@ export function LeftPanel() {
                   setContextMenu(null);
                 }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent)', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Open in Finder
@@ -484,7 +484,7 @@ export function LeftPanel() {
                   setContextMenu(null);
                 }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent)', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Open in Terminal
@@ -492,7 +492,7 @@ export function LeftPanel() {
               <div
                 onClick={() => { useAppStore.getState().setRightPanelTab('config'); setContextMenu(null); }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E5A54B', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent)', e.currentTarget.style.color = 'var(--cb-bg-primary)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Config
@@ -501,7 +501,7 @@ export function LeftPanel() {
               <div
                 onClick={() => { useAppStore.getState().deleteProject(contextMenu.id); setContextMenu(null); }}
                 style={{ padding: '6px 12px', fontSize: 12, color: 'var(--cb-text-primary)', cursor: 'pointer', borderRadius: 6 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#EF4444', e.currentTarget.style.color = '#fff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--cb-accent-red)', e.currentTarget.style.color = '#fff')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = 'var(--cb-text-primary)')}
               >
                 Remove from Codebook

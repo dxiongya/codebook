@@ -33,18 +33,18 @@ const statusColors: Record<string, string> = {
   M: '#F59E0B',
   A: '#10B981',
   D: '#EF4444',
-  '?': '#6B7280',
+  '?': 'var(--cb-text-muted)',
 };
 
 function FileTypeIcon({ filename, size = 12 }: { filename: string; size?: number }) {
-  if (filename.endsWith('/')) return <Folder size={size} style={{ color: '#E5A54B' }} />;
+  if (filename.endsWith('/')) return <Folder size={size} style={{ color: 'var(--cb-accent)' }} />;
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
   const iconMap: Record<string, { icon: React.ReactNode }> = {
     ts: { icon: <FileCode size={size} style={{ color: '#3178C6' }} /> },
     tsx: { icon: <FileCode size={size} style={{ color: '#3178C6' }} /> },
     js: { icon: <FileCode size={size} style={{ color: '#F59E0B' }} /> },
     jsx: { icon: <FileCode size={size} style={{ color: '#F59E0B' }} /> },
-    json: { icon: <FileJson size={size} style={{ color: '#E5A54B' }} /> },
+    json: { icon: <FileJson size={size} style={{ color: 'var(--cb-accent)' }} /> },
     css: { icon: <Hash size={size} style={{ color: '#A78BFA' }} /> },
     scss: { icon: <Hash size={size} style={{ color: '#A78BFA' }} /> },
     md: { icon: <FileText size={size} style={{ color: '#60A5FA' }} /> },
@@ -56,10 +56,10 @@ function FileTypeIcon({ filename, size = 12 }: { filename: string; size?: number
     yml: { icon: <FileText size={size} style={{ color: 'var(--cb-text-muted)' }} /> },
     lock: { icon: <File size={size} style={{ color: 'var(--cb-text-dim)' }} /> },
     log: { icon: <FileText size={size} style={{ color: 'var(--cb-text-dim)' }} /> },
-    pen: { icon: <File size={size} style={{ color: '#E5A54B' }} /> },
+    pen: { icon: <File size={size} style={{ color: 'var(--cb-accent)' }} /> },
     png: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
     jpg: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
-    svg: { icon: <Image size={size} style={{ color: '#E5A54B' }} /> },
+    svg: { icon: <Image size={size} style={{ color: 'var(--cb-accent)' }} /> },
     gif: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
     webp: { icon: <Image size={size} style={{ color: '#4ADE80' }} /> },
   };
@@ -67,15 +67,18 @@ function FileTypeIcon({ filename, size = 12 }: { filename: string; size?: number
 }
 
 const beforeMount = (monaco: any) => {
-  const bgCode = getComputedStyle(document.documentElement).getPropertyValue('--cb-bg-code').trim() || '#171412';
+  const cs = getComputedStyle(document.documentElement);
+  const bgCode = cs.getPropertyValue('--cb-bg-code').trim() || '#171412';
+  const bgActive = cs.getPropertyValue('--cb-bg-active').trim() || '#33302A';
+  const textDim = cs.getPropertyValue('--cb-text-dim').trim() || '#6B6560';
   monaco.editor.defineTheme('codebook-dark', {
     base: 'vs-dark',
     inherit: true,
     rules: [],
     colors: {
       'editor.background': bgCode,
-      'editor.lineHighlightBackground': '#1F1F1F',
-      'editorLineNumber.foreground': '#4B5563',
+      'editor.lineHighlightBackground': bgActive,
+      'editorLineNumber.foreground': textDim,
       'editorGutter.background': bgCode,
       'diffEditor.insertedTextBackground': '#10B98118',
       'diffEditor.removedTextBackground': '#EF444418',
@@ -87,7 +90,7 @@ const beforeMount = (monaco: any) => {
 
 // File type icon using lucide icons + text labels
 function fileIcon(name: string, isDir: boolean): { icon: React.ReactNode; color: string; isLucide: boolean } {
-  if (isDir) return { icon: <Folder size={13} />, color: '#6B7280', isLucide: true };
+  if (isDir) return { icon: <Folder size={13} />, color: 'var(--cb-text-muted)', isLucide: true };
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   // Extensions that get lucide icons
   const lucideMap: Record<string, { icon: React.ReactNode; color: string }> = {
@@ -95,8 +98,8 @@ function fileIcon(name: string, isDir: boolean): { icon: React.ReactNode; color:
     yaml: { icon: <FileText size={13} />, color: '#10B981' },
     yml: { icon: <FileText size={13} />, color: '#10B981' },
     toml: { icon: <FileText size={13} />, color: '#10B981' },
-    md: { icon: <FileText size={13} />, color: '#9CA3AF' },
-    txt: { icon: <FileText size={13} />, color: '#9CA3AF' },
+    md: { icon: <FileText size={13} />, color: 'var(--cb-text-secondary)' },
+    txt: { icon: <FileText size={13} />, color: 'var(--cb-text-secondary)' },
     html: { icon: <FileCode size={13} />, color: '#F97316' },
     xml: { icon: <FileCode size={13} />, color: '#F97316' },
     svg: { icon: <FileCode size={13} />, color: '#F59E0B' },
@@ -106,7 +109,7 @@ function fileIcon(name: string, isDir: boolean): { icon: React.ReactNode; color:
     gif: { icon: <Image size={13} />, color: '#10B981' },
     css: { icon: <Hash size={13} />, color: '#a78bfa' },
     scss: { icon: <Hash size={13} />, color: '#a78bfa' },
-    lock: { icon: <File size={13} />, color: '#4B5563' },
+    lock: { icon: <File size={13} />, color: 'var(--cb-text-dim)' },
   };
   if (lucideMap[ext]) return { ...lucideMap[ext], isLucide: true };
   // Extensions that get text labels
@@ -123,7 +126,7 @@ function fileIcon(name: string, isDir: boolean): { icon: React.ReactNode; color:
     sql: { label: 'Q', color: '#3B82F6' },
   };
   if (textMap[ext]) return { icon: textMap[ext].label, color: textMap[ext].color, isLucide: false };
-  return { icon: <File size={13} />, color: '#4B5563', isLucide: true };
+  return { icon: <File size={13} />, color: 'var(--cb-text-dim)', isLucide: true };
 }
 
 function FileTreeNode({
@@ -164,12 +167,12 @@ function FileTreeNode({
           padding: `3px 12px 3px ${indent}px`,
           cursor: (canExpand || !entry.is_dir) ? 'pointer' : 'default',
           gap: 6,
-          background: activeFilePath === entry.path ? '#1F1F1F' : 'transparent',
+          background: activeFilePath === entry.path ? 'var(--cb-bg-active)' : 'transparent',
         }}
       >
         {entry.is_dir ? (
           <span style={{
-            color: isEmpty ? '#333' : '#E5A54B',
+            color: isEmpty ? 'var(--cb-text-dim)' : '#E5A54B',
             fontSize: 9,
             width: 14,
             textAlign: 'center',
@@ -178,7 +181,7 @@ function FileTreeNode({
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            {isEmpty ? '∅' : isExpanded ? <FolderOpen size={13} style={{ color: '#E5A54B' }} /> : <Folder size={13} style={{ color: '#E5A54B' }} />}
+            {isEmpty ? '∅' : isExpanded ? <FolderOpen size={13} style={{ color: 'var(--cb-accent)' }} /> : <Folder size={13} style={{ color: 'var(--cb-accent)' }} />}
           </span>
         ) : isLucide ? (
           <span style={{
@@ -206,7 +209,7 @@ function FileTreeNode({
           </span>
         )}
         <span style={{
-          color: entry.is_dir ? (isEmpty ? '#4B5563' : '#FAFAFA') : color,
+          color: entry.is_dir ? (isEmpty ? 'var(--cb-text-dim)' : 'var(--cb-text-primary)') : color,
           fontSize: 12,
           fontFamily: "'JetBrains Mono', monospace",
           flex: 1,
@@ -218,7 +221,7 @@ function FileTreeNode({
           {entry.name}{entry.is_dir ? '/' : ''}
         </span>
         {entry.is_dir && entry.child_count != null && (
-          <span style={{ color: isEmpty ? '#333' : '#3A3530', fontSize: 9, flexShrink: 0 }}>
+          <span style={{ color: isEmpty ? 'var(--cb-text-dim)' : 'var(--cb-border)', fontSize: 9, flexShrink: 0 }}>
             {entry.child_count}
           </span>
         )}
@@ -265,12 +268,12 @@ function FullscreenFileTreeNode({
           padding: `2px 8px 2px ${indent}px`,
           cursor: (canExpand || !entry.is_dir) ? 'pointer' : 'default',
           gap: 5,
-          background: isActive ? '#1F1F1F' : 'transparent',
+          background: isActive ? 'var(--cb-bg-active)' : 'transparent',
           borderLeft: isActive ? '2px solid #E5A54B' : '2px solid transparent',
         }}
       >
         {entry.is_dir ? (
-          <span style={{ color: isEmpty ? '#333' : '#6B7280', fontSize: 8, width: 10, textAlign: 'center', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ color: isEmpty ? 'var(--cb-text-dim)' : 'var(--cb-text-muted)', fontSize: 8, width: 10, textAlign: 'center', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isEmpty ? '∅' : isExpanded ? <FolderOpen size={11} /> : <Folder size={11} />}
           </span>
         ) : isLucide ? (
@@ -283,7 +286,7 @@ function FullscreenFileTreeNode({
           </span>
         )}
         <span style={{
-          color: isActive ? '#E5A54B' : entry.is_dir ? (isEmpty ? '#4B5563' : '#9CA3AF') : color,
+          color: isActive ? '#E5A54B' : entry.is_dir ? (isEmpty ? 'var(--cb-text-dim)' : 'var(--cb-text-secondary)') : color,
           fontSize: 11,
           flex: 1,
           overflow: 'hidden',
@@ -345,7 +348,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
   if (!projectPath) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <span style={{ color: '#4B5563', fontSize: 12 }}>Select a project</span>
+        <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>Select a project</span>
       </div>
     );
   }
@@ -358,7 +361,7 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ padding: '12px 0' }}>
-      <div style={{ padding: '4px 16px 12px', color: '#9CA3AF', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ padding: '4px 16px 12px', color: 'var(--cb-text-secondary)', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>
         Project Config
       </div>
       {items.map(({ label, type, content, isJson }) => {
@@ -370,8 +373,8 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
           <div key={type} style={{ padding: '0 16px', marginBottom: 16 }}>
             <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
               <div className="flex items-center" style={{ gap: 6 }}>
-                <FileText size={12} style={{ color: '#4B5563', flexShrink: 0 }} />
-                <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+                <FileText size={12} style={{ color: 'var(--cb-text-dim)', flexShrink: 0 }} />
+                <span style={{ color: 'var(--cb-text-secondary)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
               </div>
               {!isEditing && (
                 hasContent ? (
@@ -380,9 +383,9 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                       setEditingFile(type);
                       setEditContent(displayText!);
                     }}
-                    style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#E5A54B')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
+                    style={{ color: 'var(--cb-text-muted)', fontSize: 10, cursor: 'pointer' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--cb-accent)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--cb-text-muted)')}
                   >
                     edit
                   </span>
@@ -391,17 +394,17 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                     onClick={() => handleCreate(type)}
                     className="flex items-center"
                     style={{
-                      color: '#E5A54B',
+                      color: 'var(--cb-accent)',
                       fontSize: 10,
                       cursor: 'pointer',
                       gap: 3,
                       padding: '2px 8px',
                       border: '1px solid #3A3530',
                       borderRadius: 4,
-                      background: '#1F1B17',
+                      background: 'var(--cb-bg-code)',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--cb-border)'; e.currentTarget.style.borderColor = '#E5A54B'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = '#1F1B17'; e.currentTarget.style.borderColor = '#3A3530'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--cb-border)'; e.currentTarget.style.borderColor = 'var(--cb-accent)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--cb-bg-code)'; e.currentTarget.style.borderColor = 'var(--cb-border)'; }}
                   >
                     <Plus size={10} />
                     Create
@@ -416,26 +419,26 @@ function ProjectConfigView({ projectPath }: { projectPath: string | undefined })
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={10}
                   style={{
-                    width: '100%', background: 'var(--cb-bg-code)', border: '1px solid #E5A54B',
+                    width: '100%', background: 'var(--cb-bg-code)', border: '1px solid var(--cb-accent)',
                     padding: 10, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
-                    color: '#FAFAFA', resize: 'vertical', outline: 'none',
+                    color: 'var(--cb-text-primary)', resize: 'vertical', outline: 'none',
                   }}
                 />
                 <div className="flex" style={{ gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                  <span onClick={handleSave} style={{ color: '#E5A54B', fontSize: 11, cursor: 'pointer' }}>save</span>
-                  <span onClick={() => setEditingFile(null)} style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}>cancel</span>
+                  <span onClick={handleSave} style={{ color: 'var(--cb-accent)', fontSize: 11, cursor: 'pointer' }}>save</span>
+                  <span onClick={() => setEditingFile(null)} style={{ color: 'var(--cb-text-muted)', fontSize: 11, cursor: 'pointer' }}>cancel</span>
                 </div>
               </div>
             ) : (
               <div style={{
                 background: 'var(--cb-bg-code)', border: `1px solid ${hasContent ? 'var(--cb-border)' : 'var(--cb-border)'}`, padding: 10,
                 fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-                color: hasContent ? '#FAFAFA' : '#4B5563',
+                color: hasContent ? 'var(--cb-text-primary)' : 'var(--cb-text-dim)',
                 maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap',
                 borderStyle: hasContent ? 'solid' : 'dashed',
               }}>
                 {hasContent ? displayText : (
-                  <span className="flex items-center justify-center" style={{ gap: 6, padding: '8px 0', color: '#4B5563', fontSize: 11 }}>
+                  <span className="flex items-center justify-center" style={{ gap: 6, padding: '8px 0', color: 'var(--cb-text-dim)', fontSize: 11 }}>
                     File not found
                   </span>
                 )}
@@ -685,7 +688,7 @@ export function RightPanel() {
         className="flex flex-col h-full items-center justify-center"
         style={{ background: 'var(--cb-bg-sidebar)', borderLeft: '1px solid var(--cb-border)' }}
       >
-        <span style={{ color: '#4B5563', fontSize: 12 }}>// no project selected</span>
+        <span style={{ color: 'var(--cb-text-dim)', fontSize: 12 }}>// no project selected</span>
       </div>
     );
   }
@@ -737,7 +740,7 @@ export function RightPanel() {
           <>
             {/* branch selector row (design: h32) */}
             <div className="flex items-center shrink-0" style={{ padding: '6px 14px', gap: 6 }}>
-              <GitBranch size={13} style={{ color: '#E5A54B', flexShrink: 0 }} />
+              <GitBranch size={13} style={{ color: 'var(--cb-accent)', flexShrink: 0 }} />
               <div style={{ position: 'relative' }}>
                 <select
                   value={branch}
@@ -781,7 +784,7 @@ export function RightPanel() {
                   onChange={(e) => setActiveRepoPath(e.target.value)}
                   style={{
                     appearance: 'none', background: 'transparent', border: 'none',
-                    color: '#E5A54B', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+                    color: 'var(--cb-accent)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
                   }}
                 >
                   {gitRepos.map((r) => (
@@ -835,7 +838,7 @@ export function RightPanel() {
                   />
                   <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>{stagedCount}/{changes.length}</span>
                 </div>
-                <span style={{ color: '#E5A54B', fontSize: 11, cursor: 'pointer' }}>Revert all</span>
+                <span style={{ color: 'var(--cb-accent)', fontSize: 11, cursor: 'pointer' }}>Revert all</span>
               </div>
 
               {/* file list (scrollable, resizable) */}
@@ -908,16 +911,16 @@ export function RightPanel() {
               <div className="flex-1 flex flex-col inline-diff-wrapper" style={{ minHeight: 0, overflow: 'hidden' }}>
                 {diffLoading ? (
                   <div className="flex items-center justify-center h-full">
-                    <span style={{ color: '#4B5563', fontSize: 11 }}>// loading diff...</span>
+                    <span style={{ color: 'var(--cb-text-dim)', fontSize: 11 }}>// loading diff...</span>
                   </div>
                 ) : diffResult ? (
                   <>
                     {/* diff header with expand button */}
                     <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: 'var(--cb-bg-code)' }}>
-                      <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>{diffResult.file_path}</span>
+                      <span style={{ color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500 }}>{diffResult.file_path}</span>
                       <span
                         onClick={() => setFullscreenDiff(diffResult)}
-                        style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                        style={{ color: 'var(--cb-text-muted)', fontSize: 10, cursor: 'pointer' }}
                         title="open side-by-side diff"
                       >
                         ⤢ expand
@@ -1006,7 +1009,7 @@ export function RightPanel() {
                     borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
                   }}
                 >
-                  <Sparkles size={11} style={{ color: '#E5A54B' }} />
+                  <Sparkles size={11} style={{ color: 'var(--cb-accent)' }} />
                   Generate
                 </button>
                 <button
@@ -1023,7 +1026,7 @@ export function RightPanel() {
                 <button
                   onClick={handlePush}
                   style={{
-                    padding: '5px 10px', background: '#E5A54B',
+                    padding: '5px 10px', background: 'var(--cb-accent)',
                     color: 'var(--cb-bg-primary)', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                     borderRadius: 5, display: 'flex', alignItems: 'center', gap: 5,
                   }}
@@ -1065,11 +1068,11 @@ export function RightPanel() {
             {useAppStore.getState().gitSubTab === 'worktree' && (
               <div className="flex-1 overflow-y-auto" style={{ padding: 16 }}>
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 700 }}>Active Worktrees</span>
-                <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid #E5A54B', background: 'var(--cb-bg-active)' }}>
+                <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--cb-accent)', background: 'var(--cb-bg-active)' }}>
                   <div className="flex items-center" style={{ gap: 8 }}>
-                    <GitBranch size={14} style={{ color: '#E5A54B' }} />
+                    <GitBranch size={14} style={{ color: 'var(--cb-accent)' }} />
                     <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 600, flex: 1 }}>{branch || 'main'}</span>
-                    <span style={{ color: '#E5A54B', fontSize: 10, padding: '2px 6px', background: '#E5A54B20', borderRadius: 4 }}>active</span>
+                    <span style={{ color: 'var(--cb-accent)', fontSize: 10, padding: '2px 6px', background: 'var(--cb-accent)20', borderRadius: 4 }}>active</span>
                   </div>
                   <div style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>{projectPath}</div>
                 </div>
@@ -1085,8 +1088,8 @@ export function RightPanel() {
           {/* file tree (scrollable, up to 40%) */}
           <div className="shrink-0 overflow-y-auto" style={{ maxHeight: viewingFile ? '40%' : '100%', padding: '8px 0' }}>
             <div className="flex items-center justify-between" style={{ padding: '6px 16px' }}>
-              <span style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</span>
-              <span style={{ color: '#4B5563', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ color: 'var(--cb-text-secondary)', fontSize: 11, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</span>
+              <span style={{ color: 'var(--cb-text-dim)', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
                 {explorerPath.split('/').pop()}
               </span>
             </div>
@@ -1110,7 +1113,7 @@ export function RightPanel() {
               />
             ))}
             {explorerFiles.length === 0 && (
-              <div style={{ padding: '12px 16px', color: '#4B5563', fontSize: 11 }}>// empty</div>
+              <div style={{ padding: '12px 16px', color: 'var(--cb-text-dim)', fontSize: 11 }}>// empty</div>
             )}
           </div>
 
@@ -1120,23 +1123,23 @@ export function RightPanel() {
               {/* file header */}
               <div className="flex items-center justify-between shrink-0" style={{ padding: '6px 16px', background: 'var(--cb-bg-code)' }}>
                 <div className="flex items-center" style={{ gap: 8 }}>
-                  <span style={{ color: '#FAFAFA', fontSize: 11, fontWeight: 500 }}>
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 11, fontWeight: 500 }}>
                     {viewingFile.path.split('/').pop()}
                   </span>
-                  <span style={{ color: '#4B5563', fontSize: 9 }}>
+                  <span style={{ color: 'var(--cb-text-dim)', fontSize: 9 }}>
                     {viewingFile.language} · {viewingFile.size > 1024 ? `${(viewingFile.size / 1024).toFixed(1)}kb` : `${viewingFile.size}b`}
                   </span>
                 </div>
                 <div className="flex items-center" style={{ gap: 8 }}>
                   <span
                     onClick={() => setFullscreenFile(viewingFile)}
-                    style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                    style={{ color: 'var(--cb-text-muted)', fontSize: 10, cursor: 'pointer' }}
                   >
                     ⤢ expand
                   </span>
                   <span
                     onClick={() => { setViewingFile(null); setViewingFilePath(null); }}
-                    style={{ color: '#6B7280', fontSize: 10, cursor: 'pointer' }}
+                    style={{ color: 'var(--cb-text-muted)', fontSize: 10, cursor: 'pointer' }}
                   >
                     ×
                   </span>
@@ -1186,22 +1189,22 @@ export function RightPanel() {
             {/* top bar */}
             <div className="flex items-center justify-between shrink-0" style={{ padding: '8px 16px', borderBottom: '1px solid var(--cb-border)', background: 'var(--cb-bg-code)' }}>
               <div className="flex items-center" style={{ gap: 8 }}>
-                <span style={{ color: '#E5A54B', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
-                <span style={{ color: '#FAFAFA', fontSize: 12, fontWeight: 600 }}>{fullscreenFile.path.split('/').pop()}</span>
-                <span style={{ color: '#4B5563', fontSize: 10 }}>{fullscreenFile.language}</span>
-                <span style={{ color: '#333', fontSize: 10 }}>│</span>
-                <span style={{ color: '#4B5563', fontSize: 10 }}>
+                <span style={{ color: 'var(--cb-accent)', fontSize: 11, fontWeight: 700 }}>{'>'}</span>
+                <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, fontWeight: 600 }}>{fullscreenFile.path.split('/').pop()}</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>{fullscreenFile.language}</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>│</span>
+                <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>
                   {fullscreenFile.path.replace(projectPath + '/', '')}
                 </span>
               </div>
-              <span onClick={() => setFullscreenFile(null)} style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer' }}>[esc]</span>
+              <span onClick={() => setFullscreenFile(null)} style={{ color: 'var(--cb-text-muted)', fontSize: 11, cursor: 'pointer' }}>[esc]</span>
             </div>
 
             {/* body: sidebar + editor */}
             <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
               {/* file sidebar */}
               <div style={{ width: 220, borderRight: '1px solid var(--cb-border)', overflowY: 'auto', padding: '8px 0', flexShrink: 0 }}>
-                <div style={{ padding: '4px 12px 6px', color: '#9CA3AF', fontSize: 10, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</div>
+                <div style={{ padding: '4px 12px 6px', color: 'var(--cb-text-secondary)', fontSize: 10, fontWeight: 500, fontFamily: 'Inter, system-ui, sans-serif' }}>Explorer</div>
                 {explorerFiles.map((entry) => (
                   <FullscreenFileTreeNode
                     key={entry.path}
@@ -1284,22 +1287,22 @@ export function RightPanel() {
                   <button
                     onClick={() => hasPrev && navTo(currentIdx - 1)}
                     style={{
-                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasPrev ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasPrev ? 'var(--cb-text-primary)' : 'var(--cb-text-dim)',
                       padding: '4px 8px', cursor: hasPrev ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >
                     ← prev
                   </button>
-                  <span style={{ color: '#FAFAFA', fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 600 }}>
                     {fullscreenDiff.file_path}
                   </span>
-                  <span style={{ color: '#4B5563', fontSize: 10 }}>
+                  <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>
                     {currentIdx >= 0 ? `${currentIdx + 1}/${changes.length}` : ''}
                   </span>
                   <button
                     onClick={() => hasNext && navTo(currentIdx + 1)}
                     style={{
-                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasNext ? '#FAFAFA' : '#4B5563',
+                      background: 'transparent', border: '1px solid var(--cb-border)', color: hasNext ? 'var(--cb-text-primary)' : 'var(--cb-text-dim)',
                       padding: '4px 8px', cursor: hasNext ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: 11,
                     }}
                   >
@@ -1308,12 +1311,12 @@ export function RightPanel() {
                 </div>
                 {/* right: labels + close */}
                 <div className="flex items-center" style={{ gap: 12 }}>
-                  <span style={{ color: '#6B7280', fontSize: 11 }}>original</span>
-                  <span style={{ color: '#4B5563' }}>│</span>
-                  <span style={{ color: '#E5A54B', fontSize: 11 }}>modified</span>
+                  <span style={{ color: 'var(--cb-text-muted)', fontSize: 11 }}>original</span>
+                  <span style={{ color: 'var(--cb-text-dim)' }}>│</span>
+                  <span style={{ color: 'var(--cb-accent)', fontSize: 11 }}>modified</span>
                   <span
                     onClick={() => setFullscreenDiff(null)}
-                    style={{ color: '#6B7280', fontSize: 11, cursor: 'pointer', marginLeft: 4 }}
+                    style={{ color: 'var(--cb-text-muted)', fontSize: 11, cursor: 'pointer', marginLeft: 4 }}
                   >
                     [esc]
                   </span>

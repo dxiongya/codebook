@@ -12,8 +12,8 @@ const beforeMount = (monaco: any) => {
     rules: [],
     colors: {
       'editor.background': bg,
-      'editor.lineHighlightBackground': '#1F1F1F',
-      'editorLineNumber.foreground': '#4B5563',
+      'editor.lineHighlightBackground': 'var(--cb-bg-active)',
+      'editorLineNumber.foreground': 'var(--cb-text-dim)',
       'editorGutter.background': bg,
     },
   });
@@ -143,7 +143,7 @@ function ToggleButtons({
             padding: '6px 14px',
             border: '1px solid var(--cb-border)',
             borderRight: 'none',
-            background: value === opt ? '#E5A54B' : 'var(--cb-bg-elevated)',
+            background: value === opt ? 'var(--cb-accent)' : 'var(--cb-bg-elevated)',
             color: value === opt ? 'var(--cb-bg-primary)' : 'var(--cb-text-muted)',
             fontSize: 12,
             fontWeight: value === opt ? 600 : 400,
@@ -382,7 +382,7 @@ function ClaudeCodeSection() {
             padding: '6px 16px',
             border: '1px solid var(--cb-border)',
             background: 'var(--cb-bg-elevated)',
-            color: '#E5A54B',
+            color: 'var(--cb-accent)',
             fontSize: 12,
             fontFamily: 'inherit',
             cursor: globalSettingsLoading ? 'wait' : 'pointer',
@@ -433,7 +433,7 @@ function ClaudeCodeSection() {
               style={{
                 padding: '6px 20px',
                 border: '1px solid var(--cb-border)',
-                background: '#E5A54B',
+                background: 'var(--cb-accent)',
                 color: 'var(--cb-bg-primary)',
                 fontSize: 12,
                 fontWeight: 600,
@@ -449,7 +449,7 @@ function ClaudeCodeSection() {
               <span
                 style={{
                   fontSize: 11,
-                  color: globalSettingsSaveStatus === 'saved' ? '#10B981' : '#EF4444',
+                  color: globalSettingsSaveStatus === 'saved' ? 'var(--cb-accent-green)' : 'var(--cb-accent-red)',
                 }}
               >
                 {globalSettingsSaveStatus === 'saved' ? 'Saved successfully' : globalSettingsSaveStatus}
@@ -473,7 +473,7 @@ function ClaudeCodeSection() {
               }}
             >
               <div className="flex items-center" style={{ gap: 8 }}>
-                <span style={{ color: '#10B981', fontSize: 12 }}>&#10003;</span>
+                <span style={{ color: 'var(--cb-accent-green)', fontSize: 12 }}>&#10003;</span>
                 <span style={{ color: 'var(--cb-text-primary)', fontSize: 12 }}>{p.name}</span>
               </div>
               <span style={{ color: 'var(--cb-text-dim)', fontSize: 10 }}>v{p.version} · {p.scope}</span>
@@ -503,7 +503,7 @@ function ClaudeCodeSection() {
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: s.status === 'connected' ? '#10B981' : 'var(--cb-text-dim)',
+                  background: s.status === 'connected' ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
                   border: s.status === 'connected' ? 'none' : '1px solid var(--cb-text-dim)',
                   flexShrink: 0,
                 }}
@@ -511,7 +511,7 @@ function ClaudeCodeSection() {
               <span style={{ color: 'var(--cb-text-primary)', fontSize: 12, flex: 1 }}>{s.name}</span>
               <span
                 style={{
-                  color: s.status === 'connected' ? '#10B981' : '#F59E0B',
+                  color: s.status === 'connected' ? 'var(--cb-accent-green)' : 'var(--cb-accent)',
                   fontSize: 11,
                 }}
               >
@@ -554,10 +554,10 @@ function ClaudeCodeSection() {
               key={skill}
               style={{
                 padding: '4px 10px',
-                border: '1px solid #2a4030',
-                color: '#10B981',
+                border: '1px solid var(--cb-border)',
+                color: 'var(--cb-accent-green)',
                 fontSize: 11,
-                background: '#0a1a0f',
+                background: 'var(--cb-bg-code)',
               }}
             >
               {skill}
@@ -579,7 +579,7 @@ function ClaudeCodeSection() {
                 border: '1px solid #2a2a50',
                 color: '#a78bfa',
                 fontSize: 11,
-                background: '#0f0a1a',
+                background: 'var(--cb-bg-code)',
               }}
             >
               {agent}
@@ -591,7 +591,7 @@ function ClaudeCodeSection() {
       )}
 
       <SectionHeader>permission mode</SectionHeader>
-      <div style={{ color: '#F59E0B', fontSize: 12 }}>
+      <div style={{ color: 'var(--cb-accent)', fontSize: 12 }}>
         {claudeInitData?.permissionMode ?? 'unknown'}
       </div>
 
@@ -729,11 +729,11 @@ function RemoteSection() {
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: remoteInfo?.running ? '#10B981' : 'var(--cb-text-dim)',
+            background: remoteInfo?.running ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
             flexShrink: 0,
           }}
         />
-        <span style={{ color: remoteInfo?.running ? '#10B981' : 'var(--cb-text-muted)', fontSize: 13 }}>
+        <span style={{ color: remoteInfo?.running ? 'var(--cb-accent-green)' : 'var(--cb-text-muted)', fontSize: 13 }}>
           {remoteInfo?.running ? 'running' : 'stopped'}
         </span>
         <span style={{ color: 'var(--cb-text-dim)', fontSize: 11, marginLeft: 8 }}>
@@ -748,7 +748,7 @@ function RemoteSection() {
           <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: (connectionInfo?.lan_ips?.length ?? 0) > 0 ? '#10B981' : 'var(--cb-text-dim)',
+              background: (connectionInfo?.lan_ips?.length ?? 0) > 0 ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
               flexShrink: 0,
             }} />
             <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 500 }}>LAN</span>
@@ -771,7 +771,7 @@ function RemoteSection() {
           <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
             <span style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: connectionInfo?.tailscale_online ? '#10B981' : 'var(--cb-text-dim)',
+              background: connectionInfo?.tailscale_online ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
               flexShrink: 0,
             }} />
             <span style={{ color: 'var(--cb-text-primary)', fontSize: 13, fontWeight: 500 }}>Tailscale</span>
@@ -801,7 +801,7 @@ function RemoteSection() {
               Enter this PIN on your mobile device
             </div>
             <div style={{
-              color: '#E5A54B',
+              color: 'var(--cb-accent)',
               fontSize: 32,
               fontWeight: 700,
               fontFamily: "'JetBrains Mono', monospace",
@@ -811,7 +811,7 @@ function RemoteSection() {
               {pin}
             </div>
             <div style={{
-              color: pinExpiry <= 60 ? '#EF4444' : 'var(--cb-text-dim)',
+              color: pinExpiry <= 60 ? 'var(--cb-accent-red)' : 'var(--cb-text-dim)',
               fontSize: 12,
             }}>
               expires in {formatExpiry(pinExpiry)}
@@ -841,7 +841,7 @@ function RemoteSection() {
             style={{
               padding: '8px 20px',
               border: '1px solid var(--cb-border)',
-              background: '#E5A54B',
+              background: 'var(--cb-accent)',
               color: 'var(--cb-bg-primary)',
               fontSize: 12,
               fontWeight: 500,
@@ -866,7 +866,7 @@ function RemoteSection() {
           style={{
             padding: '8px 20px',
             border: '1px solid var(--cb-border)',
-            background: remoteInfo?.running ? 'transparent' : '#E5A54B',
+            background: remoteInfo?.running ? 'transparent' : 'var(--cb-accent)',
             color: remoteInfo?.running ? 'var(--cb-text-muted)' : 'var(--cb-bg-primary)',
             fontSize: 12,
             fontWeight: 500,
@@ -939,7 +939,7 @@ function DisplaySection() {
           onChange={(e) => handleFontSizeChange(parseInt(e.target.value, 10))}
           style={{
             width: 160,
-            accentColor: '#E5A54B',
+            accentColor: 'var(--cb-accent)',
             cursor: 'pointer',
           }}
         />
@@ -1013,7 +1013,7 @@ function AboutSection() {
         href="https://github.com"
         target="_blank"
         rel="noopener noreferrer"
-        style={{ color: '#E5A54B', fontSize: 13, textDecoration: 'none' }}
+        style={{ color: 'var(--cb-accent)', fontSize: 13, textDecoration: 'none' }}
       >
         github repo
       </a>
@@ -1154,12 +1154,12 @@ export function SettingsPanel() {
                         fontFamily: 'inherit',
                       }}
                     >
-                      <span style={{ color: isActive ? '#E5A54B' : 'var(--cb-text-dim)', fontSize: 11 }}>
+                      <span style={{ color: isActive ? 'var(--cb-accent)' : 'var(--cb-text-dim)', fontSize: 11 }}>
                         {'\u00B7'}
                       </span>
                       <span
                         style={{
-                          color: isActive ? '#E5A54B' : 'var(--cb-text-muted)',
+                          color: isActive ? 'var(--cb-accent)' : 'var(--cb-text-muted)',
                           fontSize: 13,
                         }}
                       >

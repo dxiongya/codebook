@@ -101,7 +101,7 @@ export function RemotePanel() {
           <div className="flex items-center" style={{ gap: 8 }}>
             <div style={{
               width: 7, height: 7, borderRadius: '50%',
-              background: remoteInfo?.running ? '#4ADE80' : 'var(--cb-text-dim)',
+              background: remoteInfo?.running ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)',
               boxShadow: remoteInfo?.running ? '0 0 6px #4ADE8088' : 'none',
             }} />
             <span style={{ fontSize: 13, color: 'var(--cb-text-secondary)' }}>
@@ -114,8 +114,8 @@ export function RemotePanel() {
           <div className="flex items-center" style={{ gap: 10 }}>
             {remoteInfo?.running && remoteInfo.client_count > 0 && (
               <div className="flex items-center" style={{ gap: 5 }}>
-                <Smartphone size={12} style={{ color: '#E5A54B' }} />
-                <span style={{ fontSize: 11, color: '#E5A54B' }}>{remoteInfo.client_count}</span>
+                <Smartphone size={12} style={{ color: 'var(--cb-accent)' }} />
+                <span style={{ fontSize: 11, color: 'var(--cb-accent)' }}>{remoteInfo.client_count}</span>
               </div>
             )}
             <button
@@ -144,22 +144,22 @@ export function RemotePanel() {
             ))}
             {connInfo.tailscale_online && connInfo.tailscale_ip ? (
               <AddressRow
-                icon={<Zap size={13} style={{ color: '#A78BFA' }} />}
+                icon={<Zap size={13} style={{ color: 'var(--cb-accent-purple)' }} />}
                 label="Tailscale"
                 value={`${connInfo.tailscale_ip}:${connInfo.port}`}
                 onCopy={() => copyToClipboard(`ws://${connInfo.tailscale_ip}:${connInfo.port}`, 'ts')}
                 copied={copied === 'ts'}
-                accent="#A78BFA"
+                accent="var(--cb-accent-purple)"
               />
             ) : (
               <div className="flex items-center" style={{ gap: 6, padding: '8px 12px', background: '#1F1C19', borderRadius: 8, border: '1px solid var(--cb-border)' }}>
-                <WifiOff size={12} style={{ color: '#4B5563' }} />
-                <span style={{ fontSize: 11, color: '#4B5563' }}>Tailscale not connected</span>
+                <WifiOff size={12} style={{ color: 'var(--cb-text-dim)' }} />
+                <span style={{ fontSize: 11, color: 'var(--cb-text-dim)' }}>Tailscale not connected</span>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ color: '#4B5563', fontSize: 12, padding: '8px 0' }}>Loading...</div>
+          <div style={{ color: 'var(--cb-text-dim)', fontSize: 12, padding: '8px 0' }}>Loading...</div>
         )}
       </Section>
 
@@ -173,7 +173,7 @@ export function RemotePanel() {
                 <span style={{ fontSize: 11, color: 'var(--cb-text-dim)', letterSpacing: 1 }}>ONE-TIME PIN</span>
                 <button
                   onClick={() => copyToClipboard(pin, 'pin')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied === 'pin' ? '#4ADE80' : 'var(--cb-text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied === 'pin' ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}
                 >
                   {copied === 'pin' ? <Check size={12} /> : <Copy size={12} />}
                   <span style={{ fontSize: 11 }}>{copied === 'pin' ? 'Copied' : 'Copy'}</span>
@@ -188,7 +188,7 @@ export function RemotePanel() {
                     border: '1px solid #3A3530',
                     borderRadius: 8,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 20, fontWeight: 700, color: '#E5A54B',
+                    fontSize: 20, fontWeight: 700, color: 'var(--cb-accent)',
                     fontFamily: 'JetBrains Mono, monospace',
                     letterSpacing: 0,
                   }}>
@@ -201,7 +201,7 @@ export function RemotePanel() {
                 <div style={{
                   height: '100%',
                   width: `${pinProgress * 100}%`,
-                  background: pinProgress > 0.4 ? '#E5A54B' : pinProgress > 0.15 ? '#F59E0B' : '#EF4444',
+                  background: pinProgress > 0.4 ? 'var(--cb-accent)' : pinProgress > 0.15 ? 'var(--cb-accent)' : 'var(--cb-accent-red)',
                   borderRadius: 2,
                   transition: 'width 1s linear, background 0.3s',
                 }} />
@@ -230,7 +230,7 @@ export function RemotePanel() {
               onClick={handleGeneratePin}
               disabled={loading}
               style={{
-                background: '#E5A54B', border: 'none', borderRadius: 8,
+                background: 'var(--cb-accent)', border: 'none', borderRadius: 8,
                 padding: '10px 0', fontSize: 13, fontWeight: 600,
                 color: 'var(--cb-bg-primary)', cursor: loading ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit', opacity: loading ? 0.7 : 1,
@@ -299,7 +299,7 @@ function AddressRow({
       </span>
       <button
         onClick={onCopy}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: copied ? '#4ADE80' : 'var(--cb-text-dim)', display: 'flex', flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: copied ? 'var(--cb-accent-green)' : 'var(--cb-text-dim)', display: 'flex', flexShrink: 0 }}
       >
         {copied ? <Check size={12} /> : <Copy size={12} />}
       </button>
