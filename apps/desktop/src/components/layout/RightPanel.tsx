@@ -586,12 +586,12 @@ export function RightPanel() {
 
   // Load diff when a file is clicked
   const handleFileClick = async (filePath: string) => {
-    if (!projectPath) return;
+    if (!effectiveGitPath) return;
     setSelectedFile(filePath);
     setDiffLoading(true);
     setDiffResult(null);
     try {
-      const result = await api.gitDiffFile(projectPath, filePath);
+      const result = await api.gitDiffFile(effectiveGitPath, filePath);
       setDiffResult(result);
     } catch (err) {
       console.error('Failed to load diff:', err);
@@ -655,10 +655,10 @@ export function RightPanel() {
 
   // Commit
   const handleCommit = async () => {
-    if (!projectPath || !commitMsg.trim() || stagedCount === 0) return;
+    if (!effectiveGitPath || !commitMsg.trim() || stagedCount === 0) return;
     try {
       const filesToStage = stagedCount === changes.length ? undefined : Array.from(stagedFiles);
-      const result = await api.gitCommit(projectPath, commitMsg.trim(), filesToStage);
+      const result = await api.gitCommit(effectiveGitPath, commitMsg.trim(), filesToStage);
       setCommitMsg('');
       setCommitFeedback(result.hash.slice(0, 7));
       setTimeout(() => setCommitFeedback(null), 3000);
@@ -692,7 +692,7 @@ export function RightPanel() {
   const handlePush = async () => {
     if (!projectPath) return;
     try {
-      await api.gitPush(projectPath);
+      await api.gitPush(effectiveGitPath);
       setPushFeedback('pushed');
       setTimeout(() => setPushFeedback(null), 3000);
     } catch (err: any) {
@@ -1024,10 +1024,10 @@ export function RightPanel() {
               <div className="flex" style={{ gap: 6 }}>
                 <button
                   onClick={async () => {
-                    if (!projectPath || generating) return;
+                    if (!effectiveGitPath || generating) return;
                     setGenerating(true);
                     try {
-                      const msg = await api.generateCommitMessage(projectPath, stagedCount === changes.length ? undefined : Array.from(stagedFiles));
+                      const msg = await api.generateCommitMessage(effectiveGitPath, stagedCount === changes.length ? undefined : Array.from(stagedFiles));
                       setCommitMsg(msg);
                     } catch (err: any) {
                       setCommitFeedback(`error: ${err?.message ?? err}`);
@@ -1344,9 +1344,9 @@ export function RightPanel() {
         const hasPrev = currentIdx > 0;
         const hasNext = currentIdx < changes.length - 1 && currentIdx >= 0;
         const navTo = async (idx: number) => {
-          if (!projectPath || idx < 0 || idx >= changes.length) return;
+          if (!effectiveGitPath || idx < 0 || idx >= changes.length) return;
           try {
-            const result = await api.gitDiffFile(projectPath, changes[idx].path);
+            const result = await api.gitDiffFile(effectiveGitPath, changes[idx].path);
             setFullscreenDiff(result);
             setSelectedFile(changes[idx].path);
           } catch { /* ignore */ }
